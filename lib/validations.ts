@@ -4,29 +4,33 @@
 
 import { z } from "zod/v4";
 
+const MAX_NAME_LENGTH = 200;
+const MAX_TEXT_LENGTH = 2000;
+const MAX_NOTES_LENGTH = 5000;
+
 // --- Extracted Card Data (from Gemini response) ---
 export const cardDataSchema = z.object({
-  name: z.string().nullable(),
-  designation: z.string().nullable(),
-  company: z.string().nullable(),
+  name: z.string().max(MAX_NAME_LENGTH).nullable(),
+  designation: z.string().max(MAX_NAME_LENGTH).nullable(),
+  company: z.string().max(MAX_NAME_LENGTH).nullable(),
   emails: z.array(z.string().email()).default([]),
   phones: z.array(z.string()).default([]),
   websites: z.array(z.string().url()).default([]),
-  address: z.string().nullable(),
+  address: z.string().max(MAX_TEXT_LENGTH).nullable(),
 });
 
 export type CardDataInput = z.infer<typeof cardDataSchema>;
 
 // --- Save Lead Form ---
 export const saveLeadSchema = z.object({
-  name: z.string().min(1, "Name is required").nullable(),
-  designation: z.string().nullable(),
-  company: z.string().nullable(),
-  emails: z.array(z.string()),
-  phones: z.array(z.string()),
-  websites: z.array(z.string()),
-  address: z.string().nullable(),
-  notes: z.string().nullable(),
+  name: z.string().min(1, "Name is required").max(MAX_NAME_LENGTH).nullable(),
+  designation: z.string().max(MAX_NAME_LENGTH).nullable(),
+  company: z.string().max(MAX_NAME_LENGTH).nullable(),
+  emails: z.array(z.string().max(254)),
+  phones: z.array(z.string().max(50)),
+  websites: z.array(z.string().max(2048)),
+  address: z.string().max(MAX_TEXT_LENGTH).nullable(),
+  notes: z.string().max(MAX_NOTES_LENGTH).nullable(),
 });
 
 export type SaveLeadInput = z.infer<typeof saveLeadSchema>;
@@ -47,18 +51,24 @@ export const updateLeadStatusSchema = z.object({
 
 // --- User Profile Update ---
 export const updateProfileSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "Name is required").max(MAX_NAME_LENGTH),
 });
 
 // --- Sign In ---
 export const signInSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password must be at most 128 characters"),
 });
 
 // --- Sign Up ---
 export const signUpSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "Name is required").max(MAX_NAME_LENGTH),
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password must be at most 128 characters"),
 });

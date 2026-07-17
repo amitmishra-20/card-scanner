@@ -38,7 +38,7 @@ export async function createLead(
 
     return { success: true, data: { id: lead.id } };
   } catch (error) {
-    console.error("Create lead error:", error);
+    console.error("Create lead error:", error instanceof Error ? error.message : error);
     return { success: false, error: "Failed to create lead" };
   }
 }
@@ -60,7 +60,7 @@ export async function getLeads(options?: {
     const result = await leadService.getLeads(session.user.id, options);
     return { success: true, data: result };
   } catch (error) {
-    console.error("Get leads error:", error);
+    console.error("Get leads error:", error instanceof Error ? error.message : error);
     return { success: false, error: "Failed to fetch leads" };
   }
 }
@@ -82,7 +82,7 @@ export async function getLead(leadId: string) {
 
     return { success: true, data: lead };
   } catch (error) {
-    console.error("Get lead error:", error);
+    console.error("Get lead error:", error instanceof Error ? error.message : error);
     return { success: false, error: "Failed to fetch lead" };
   }
 }
@@ -105,12 +105,11 @@ export async function updateLead(formData: unknown): Promise<ActionResult> {
     await leadService.updateLead(session.user.id, validated.data);
 
     revalidatePath("/leads");
-    revalidatePath(`/leads/${validated.data.id}`);
     revalidatePath("/dashboard");
 
     return { success: true };
   } catch (error) {
-    console.error("Update lead error:", error);
+    console.error("Update lead error:", error instanceof Error ? error.message : error);
     return { success: false, error: "Failed to update lead" };
   }
 }
@@ -133,15 +132,18 @@ export async function updateLeadStatusAction(
       return { success: false, error: "Invalid status" };
     }
 
-    await leadService.updateLeadStatus(session.user.id, leadId, status);
+    await leadService.updateLeadStatus(
+      session.user.id,
+      validated.data.id,
+      validated.data.status
+    );
 
     revalidatePath("/leads");
-    revalidatePath(`/leads/${leadId}`);
     revalidatePath("/dashboard");
 
     return { success: true };
   } catch (error) {
-    console.error("Update lead status error:", error);
+    console.error("Update lead status error:", error instanceof Error ? error.message : error);
     return { success: false, error: "Failed to update status" };
   }
 }
@@ -165,7 +167,7 @@ export async function deleteLeadAction(
 
     return { success: true };
   } catch (error) {
-    console.error("Delete lead error:", error);
+    console.error("Delete lead error:", error instanceof Error ? error.message : error);
     return { success: false, error: "Failed to delete lead" };
   }
 }
@@ -183,7 +185,7 @@ export async function getDashboardData() {
     const stats = await leadService.getDashboardStats(session.user.id);
     return { success: true, data: stats };
   } catch (error) {
-    console.error("Get dashboard error:", error);
+    console.error("Get dashboard error:", error instanceof Error ? error.message : error);
     return { success: false, error: "Failed to fetch dashboard data" };
   }
 }

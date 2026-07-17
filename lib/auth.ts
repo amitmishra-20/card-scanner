@@ -34,26 +34,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const validated = signInSchema.safeParse(credentials);
-        if (!validated.success) return null;
+        try {
+          const validated = signInSchema.safeParse(credentials);
+          if (!validated.success) return null;
 
-        const { email, password } = validated.data;
+          const { email, password } = validated.data;
 
-        const user = await db.user.findUnique({
-          where: { email },
-        });
+          const user = await db.user.findUnique({ where: { email } });
+          if (!user || !user.password) return null;
 
-        if (!user || !user.password) return null;
+          const passwordMatch = await bcrypt.compare(password, user.password);
+          if (!passwordMatch) return null;
 
-        const passwordMatch = await bcrypt.compare(password, user.password);
-        if (!passwordMatch) return null;
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.image,
-        };
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            image: user.image,
+          };
+        } catch (error) {
+          console.error(
+            "Authorize error:",
+            error instanceof Error ? error.message : error
+          );
+          return null;
+        }
       },
     }),
   ],
@@ -72,31 +77,43 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async signIn({ user, account }) {
       // For OAuth: ensure user gets a free plan on first sign-in
-      if (account?.provider !== "credentials" && user?.id) {
-        const existingSub = await db.subscription.findUnique({
-          where: { userId: user.id },
-        });
-
-        if (!existingSub) {
-          const freePlan = await db.plan.findUnique({
-            where: { name: "FREE" },
+      try {
+        if (account?.provider !== "credentials" && user?.id) {
+          const existingSub = await db.subscription.findUnique({
+            where: { userId: user.id },
           });
 
-          if (freePlan) {
-            const now = new Date();
-            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-            await db.subscription.create({
-              data: {
-                userId: user.id,
-                planId: freePlan.id,
-                status: "ACTIVE",
-                currentPeriodStart: now,
-                currentPeriodEnd: endOfMonth,
-              },
+          if (!existingSub) {
+            const freePlan = await db.plan.findUnique({
+              where: { name: "FREE" },
             });
+
+            if (freePlan) {
+              const now = new Date();
+              const endOfMonth = new Date(
+                now.getFullYear(),
+                now.getMonth() + 1,
+                0
+              );
+
+              await db.subscription.create({
+                data: {
+                  userId: user.id,
+                  planId: freePlan.id,
+                  status: "ACTIVE",
+                  currentPeriodStart: now,
+                  currentPeriodEnd: endOfMonth,
+                },
+              });
+            }
           }
         }
+      } catch (error) {
+        console.error(
+          "SignIn callback error:",
+          error instanceof Error ? error.message : error
+        );
+        // Don't block sign-in if subscription setup fails
       }
       return true;
     },

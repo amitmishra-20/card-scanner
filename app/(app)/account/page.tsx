@@ -1,31 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { updateProfileAction, deleteAccountAction } from "@/actions/user";
+import {
+  updateProfileAction,
+  deleteAccountAction,
+} from "@/actions/user";
 import { signOut } from "next-auth/react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export default function AccountPage() {
   const { data: session, status } = useSession();
-  const router = useRouter();
   const [name, setName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [nameInitialized, setNameInitialized] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Initialize name from session once
-  if (status === "authenticated" && session?.user?.name && !nameInitialized) {
-    setName(session.user.name);
-    setNameInitialized(true);
-  }
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.name) {
+      setName(session.user.name);
+    }
+  }, [status, session]);
 
   if (status === "loading") {
     return (
@@ -60,32 +79,44 @@ export default function AccountPage() {
       return;
     }
     setIsSaving(true);
-    const res = await updateProfileAction({ name: name.trim() });
-    setIsSaving(false);
-    if (res.success) {
-      toast.success("Profile updated");
-    } else {
-      toast.error(res.error || "Failed to update profile");
+    try {
+      const res = await updateProfileAction({ name: name.trim() });
+      if (res.success) {
+        toast.success("Profile updated");
+      } else {
+        toast.error(res.error || "Failed to update profile");
+      }
+    } catch {
+      toast.error("Failed to update profile");
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDeleteAccount = async () => {
-    if (!confirm("Are you sure you want to delete your account? This action cannot be undone.")) return;
+    setShowDeleteDialog(false);
     setIsDeleting(true);
-    const res = await deleteAccountAction();
-    if (res.success) {
-      toast.success("Account deleted");
-      signOut({ callbackUrl: "/" });
-    } else {
+    try {
+      const res = await deleteAccountAction();
+      if (res.success) {
+        toast.success("Account deleted");
+        signOut({ callbackUrl: "/" });
+      } else {
+        toast.error(res.error || "Failed to delete account");
+      }
+    } catch {
+      toast.error("Failed to delete account");
+    } finally {
       setIsDeleting(false);
-      toast.error(res.error || "Failed to delete account");
     }
   };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Account Settings</h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Account Settings
+        </h1>
         <p className="text-muted-foreground mt-2">
           Manage your profile and preferences.
         </p>
@@ -101,7 +132,10 @@ export default function AccountPage() {
         <CardContent className="space-y-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
             <Avatar className="w-24 h-24 border-2 border-border/50">
-              <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
+              <AvatarImage
+                src={session?.user?.image || ""}
+                alt={session?.user?.name || ""}
+              />
               <AvatarFallback className="bg-primary/10 text-primary text-2xl">
                 {session?.user?.name?.charAt(0).toUpperCase() || "U"}
               </AvatarFallback>
@@ -117,8 +151,8 @@ export default function AccountPage() {
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
-                <Input 
-                  id="name" 
+                <Input
+                  id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="bg-background/50"
@@ -126,10 +160,10 @@ export default function AccountPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
-                <Input 
-                  id="email" 
-                  type="email" 
-                  defaultValue={session?.user?.email || ""} 
+                <Input
+                  id="email"
+                  type="email"
+                  defaultValue={session?.user?.email || ""}
                   disabled
                   className="bg-muted text-muted-foreground"
                 />
@@ -140,8 +174,8 @@ export default function AccountPage() {
             </div>
 
             <div className="pt-4 border-t border-border/50 flex justify-end">
-              <Button 
-                type="button" 
+              <Button
+                type="button"
                 className="btn-gradient px-8 shadow-lg shadow-primary/20"
                 onClick={handleSaveChanges}
                 disabled={isSaving}
@@ -165,13 +199,14 @@ export default function AccountPage() {
             <div>
               <h4 className="font-medium text-foreground">Delete Account</h4>
               <p className="text-sm text-muted-foreground mt-1 max-w-md">
-                Once you delete your account, there is no going back. Please be certain.
+                Once you delete your account, there is no going back. Please be
+                certain.
               </p>
             </div>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               className="shrink-0"
-              onClick={handleDeleteAccount}
+              onClick={() => setShowDeleteDialog(true)}
               disabled={isDeleting}
             >
               {isDeleting ? "Deleting..." : "Delete Account"}
@@ -179,6 +214,30 @@ export default function AccountPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Confirm Delete Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Account</DialogTitle>
+            <DialogDescription>
+              This will permanently delete your account and all associated data.
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteAccount}>
+              Delete Account
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
+import { useInView } from "@/lib/use-in-view";
+import { cn } from "@/lib/utils";
 
 const faqs = [
   {
@@ -45,61 +45,36 @@ const faqs = [
 function FaqItem({
   question,
   answer,
-  isOpen,
-  onToggle,
 }: {
   question: string;
   answer: string;
-  isOpen: boolean;
-  onToggle: () => void;
 }) {
   return (
-    <div className="faq-item">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between py-6 text-left group"
-      >
+    <details className="group faq-item">
+      <summary className="w-full flex items-center justify-between py-6 text-left cursor-pointer group-hover:text-primary transition-colors pr-4 list-none [&::-webkit-details-marker]:hidden">
         <span className="text-lg font-medium text-foreground group-hover:text-primary transition-colors pr-4">
           {question}
         </span>
-        <motion.div
-          animate={{ rotate: isOpen ? 180 : 0 }}
-          transition={{ duration: 0.2 }}
-          className="shrink-0"
-        >
-          <ChevronDown className="w-5 h-5 text-muted-foreground" />
-        </motion.div>
-      </button>
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden"
-          >
-            <p className="pb-6 text-muted-foreground leading-relaxed">
-              {answer}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+        <ChevronDown className="w-5 h-5 text-muted-foreground shrink-0 transition-transform duration-200 group-open:rotate-180" />
+      </summary>
+      <p className="pb-6 text-muted-foreground leading-relaxed">{answer}</p>
+    </details>
   );
 }
 
 export function Faq() {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const { ref: headingRef, isInView: headingVisible } = useInView();
+  const { ref: listRef, isInView: listVisible } = useInView();
 
   return (
     <section id="faq" className="py-24 bg-background border-t border-border/50">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-16"
+        <div
+          ref={headingRef}
+          className={cn(
+            "text-center mb-16 animate-fade-in-up",
+            headingVisible && "visible"
+          )}
         >
           <h2 className="font-heading text-4xl md:text-5xl tracking-tight mb-4">
             Questions?
@@ -107,24 +82,19 @@ export function Faq() {
           <p className="text-lg text-muted-foreground">
             We&apos;ve got answers.
           </p>
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.1 }}
+        <div
+          ref={listRef}
+          className={cn(
+            "animate-fade-in-up",
+            listVisible && "visible"
+          )}
         >
           {faqs.map((faq, i) => (
-            <FaqItem
-              key={i}
-              question={faq.question}
-              answer={faq.answer}
-              isOpen={openIndex === i}
-              onToggle={() => setOpenIndex(openIndex === i ? null : i)}
-            />
+            <FaqItem key={i} question={faq.question} answer={faq.answer} />
           ))}
-        </motion.div>
+        </div>
       </div>
     </section>
   );

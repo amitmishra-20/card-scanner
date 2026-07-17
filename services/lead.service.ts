@@ -5,12 +5,15 @@
 import { db } from "@/lib/db";
 import type { LeadStatus } from "@/types";
 import type { SaveLeadInput, UpdateLeadInput } from "@/lib/validations";
-import { getOrCreateSubscription, getCurrentUsage } from "./subscription.service";
 
 function parseJsonArray(val: unknown): string[] {
   if (Array.isArray(val)) return val;
   if (typeof val === "string") {
-    try { return JSON.parse(val); } catch { return []; }
+    try {
+      return JSON.parse(val);
+    } catch {
+      return [];
+    }
   }
   return [];
 }
@@ -42,7 +45,7 @@ export async function getLeads(
   }
 ) {
   const page = options?.page ?? 1;
-  const limit = options?.limit ?? 20;
+  const limit = Math.min(options?.limit ?? 20, 100); // cap at 100
   const skip = (page - 1) * limit;
 
   const where: Record<string, unknown> = { userId };
@@ -52,12 +55,13 @@ export async function getLeads(
   }
 
   if (options?.search) {
+    const search = options.search.slice(0, 200); // cap search length
     where.OR = [
-      { name: { contains: options.search } },
-      { company: { contains: options.search } },
-      { designation: { contains: options.search } },
-      { emails: { contains: options.search } },
-      { phones: { contains: options.search } },
+      { name: { contains: search } },
+      { company: { contains: search } },
+      { designation: { contains: search } },
+      { emails: { contains: search } },
+      { phones: { contains: search } },
     ];
   }
 
@@ -98,16 +102,9 @@ export async function getLeadById(userId: string, leadId: string) {
 }
 
 export async function updateLead(userId: string, data: UpdateLeadInput) {
-  const lead = await db.lead.findFirst({
+  // Atomic: update only if the lead belongs to this user
+  const result = await db.lead.updateMany({
     where: { id: data.id, userId },
-  });
-
-  if (!lead) {
-    throw new Error("Lead not found");
-  }
-
-  return db.lead.update({
-    where: { id: data.id },
     data: {
       name: data.name,
       designation: data.designation,
@@ -120,6 +117,12 @@ export async function updateLead(userId: string, data: UpdateLeadInput) {
       status: data.status,
     },
   });
+
+  if (result.count === 0) {
+    throw new Error("Lead not found");
+  }
+
+  return { id: data.id };
 }
 
 export async function updateLeadStatus(
@@ -127,37 +130,30 @@ export async function updateLeadStatus(
   leadId: string,
   status: LeadStatus
 ) {
-  const lead = await db.lead.findFirst({
+  const result = await db.lead.updateMany({
     where: { id: leadId, userId },
-  });
-
-  if (!lead) {
-    throw new Error("Lead not found");
-  }
-
-  return db.lead.update({
-    where: { id: leadId },
     data: { status },
   });
+
+  if (result.count === 0) {
+    throw new Error("Lead not found");
+  }
 }
 
 export async function deleteLead(userId: string, leadId: string) {
-  const lead = await db.lead.findFirst({
+  const result = await db.lead.deleteMany({
     where: { id: leadId, userId },
   });
 
-  if (!lead) {
+  if (result.count === 0) {
     throw new Error("Lead not found");
   }
-
-  return db.lead.delete({
-    where: { id: leadId },
-  });
 }
 
 export async function getDashboardStats(userId: string) {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   const [
     totalLeads,
@@ -165,6 +161,8 @@ export async function getDashboardStats(userId: string) {
     leadsByStatus,
     recentLeads,
     leadsOverTime,
+    scansThisMonth,
+    subscription,
   ] = await Promise.all([
     db.lead.count({ where: { userId } }),
     db.lead.count({
@@ -181,15 +179,25 @@ export async function getDashboardStats(userId: string) {
       take: 5,
     }),
     db.lead.findMany({
-      where: {
-        userId,
-        createdAt: {
-          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        },
-      },
+      where: { userId, createdAt: { gte: thirtyDaysAgo } },
       select: { createdAt: true },
       orderBy: { createdAt: "asc" },
     }),
+    (async () => {
+      const month = now.getMonth() + 1;
+      const year = now.getFullYear();
+      const usage = await db.scanUsage.findUnique({
+        where: { userId_month_year: { userId, month, year } },
+      });
+      return usage?.count ?? 0;
+    })(),
+    (async () => {
+      const sub = await db.subscription.findUnique({
+        where: { userId },
+        include: { plan: true },
+      });
+      return sub;
+    })(),
   ]);
 
   const dailyCounts: Record<string, number> = {};
@@ -207,8 +215,8 @@ export async function getDashboardStats(userId: string) {
     totalLeads,
     newLeadsThisMonth,
     conversionRate,
-    scansThisMonth: await getCurrentUsage(userId),
-    scanLimit: (await getOrCreateSubscription(userId)).plan.scanLimit,
+    scansThisMonth,
+    scanLimit: subscription?.plan.scanLimit ?? 5,
     leadsByStatus: leadsByStatus.map((s) => ({
       status: s.status as LeadStatus,
       count: s._count.status,

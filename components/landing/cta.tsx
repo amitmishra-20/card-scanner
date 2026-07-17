@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { MagneticButton } from "@/components/ui/magnetic-button";
+import { useInView } from "@/lib/use-in-view";
 import { cn } from "@/lib/utils";
 
 export function CTA() {
+  const { ref, isInView } = useInView();
+
   return (
     <section className="py-24 relative overflow-hidden bg-primary text-primary-foreground">
       {/* Subtle card silhouette watermark */}
@@ -16,11 +18,12 @@ export function CTA() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
+        <div
+          ref={ref}
+          className={cn(
+            "animate-fade-in-up",
+            isInView && "visible"
+          )}
         >
           <h2 className="font-heading text-4xl sm:text-5xl md:text-6xl tracking-tight mb-8 leading-[0.95]">
             Your next contact
@@ -28,7 +31,8 @@ export function CTA() {
             is in your hand.
           </h2>
           <p className="text-lg max-w-xl mx-auto mb-12 opacity-80">
-            Join thousands of professionals who stopped typing and started scanning.
+            Join thousands of professionals who stopped typing and started
+            scanning.
           </p>
 
           <MagneticButton>
@@ -43,7 +47,7 @@ export function CTA() {
               <ArrowRight className="w-5 h-5 ml-3" />
             </Link>
           </MagneticButton>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

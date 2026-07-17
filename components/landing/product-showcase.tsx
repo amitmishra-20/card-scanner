@@ -1,24 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { motion, useScroll, useTransform, useInView, useMotionValue, useSpring, useMotionValueEvent } from "framer-motion";
-
-function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once: true });
-  const count = useMotionValue(0);
-  const rounded = useSpring(count, { stiffness: 80, damping: 20 });
-
-  if (isInView) {
-    count.set(value);
-  }
-
-  return (
-    <span ref={ref}>
-      <motion.span>{useTransform(rounded, (v) => `${Math.round(v)}${suffix}`) as any}</motion.span>
-    </span>
-  );
-}
+import { motion, useScroll, useTransform, useInView, useMotionValue, useSpring, useMotionValueEvent, type MotionValue } from "framer-motion";
 
 function StatNumber({ value, suffix, label }: { value: number; suffix: string; label: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -60,7 +43,7 @@ function CountUp({ target, suffix }: { target: number; suffix: string }) {
   );
 }
 
-function MotionValueDisplay({ value, suffix }: { value: any; suffix: string }) {
+function MotionValueDisplay({ value, suffix }: { value: MotionValue<number>; suffix: string }) {
   const ref = useRef<HTMLSpanElement>(null);
 
   useMotionValueEvent(value, "change", (latest: number) => {

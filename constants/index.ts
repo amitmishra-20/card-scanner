@@ -2,56 +2,42 @@
 // CardScan Pro — Constants
 // ============================================
 
+import {
+  LayoutDashboard,
+  ScanLine,
+  Users,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
 import type { LeadStatus } from "@/types";
 
-// --- Plan Definitions ---
-export const PLANS = {
-  FREE: {
-    name: "FREE" as const,
-    displayName: "Free",
-    price: 0,
-    scanLimit: 5,
-    interval: "month",
-    features: [
-      "5 card scans per month",
-      "Lead management",
-      "Basic dashboard",
-      "Email support",
-    ],
-    popular: false,
+// --- Navigation ---
+export const APP_NAV_ITEMS: {
+  title: string;
+  href: string;
+  icon: LucideIcon;
+}[] = [
+  {
+    title: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
   },
-  PRO: {
-    name: "PRO" as const,
-    displayName: "Pro",
-    price: 9900, // $99.00
-    scanLimit: 250,
-    interval: "month",
-    features: [
-      "250 card scans per month",
-      "Lead management",
-      "Full analytics dashboard",
-      "CSV export",
-      "Priority support",
-    ],
-    popular: true,
+  {
+    title: "Scan Card",
+    href: "/scan",
+    icon: ScanLine,
   },
-  ENTERPRISE: {
-    name: "ENTERPRISE" as const,
-    displayName: "Enterprise",
-    price: 49900, // $499.00
-    scanLimit: -1, // unlimited
-    interval: "month",
-    features: [
-      "Unlimited card scans",
-      "Lead management",
-      "Full analytics dashboard",
-      "CSV & API export",
-      "Dedicated support",
-      "Custom integrations",
-    ],
-    popular: false,
+  {
+    title: "Leads",
+    href: "/leads",
+    icon: Users,
   },
-} as const;
+  {
+    title: "Account",
+    href: "/account",
+    icon: Settings,
+  },
+];
 
 // --- Lead Status Config ---
 export const LEAD_STATUS_CONFIG: Record<
@@ -111,32 +97,9 @@ Rules:
 - Do not guess or fabricate information
 - Return ONLY the JSON object, nothing else`;
 
-// --- Navigation ---
-export const APP_NAV_ITEMS = [
-  {
-    title: "Dashboard",
-    href: "/dashboard",
-    icon: "LayoutDashboard",
-  },
-  {
-    title: "Scan Card",
-    href: "/scan",
-    icon: "ScanLine",
-  },
-  {
-    title: "Leads",
-    href: "/leads",
-    icon: "Users",
-  },
-  {
-    title: "Account",
-    href: "/account",
-    icon: "Settings",
-  },
-] as const;
-
 // --- App Metadata ---
 export const APP_NAME = "CardScan Pro";
 export const APP_DESCRIPTION =
   "AI-powered business card scanner. Turn business cards into actionable leads instantly.";
-export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+export const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";

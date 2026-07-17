@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, DM_Serif_Display } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Providers } from "@/components/providers";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -33,15 +33,19 @@ export const metadata: Metadata = {
     "lead management",
     "contact extraction",
   ],
+  openGraph: {
+    title: "CardScan Pro — AI-Powered Business Card Scanner",
+    description:
+      "Turn business cards into actionable leads instantly with AI-powered scanning.",
+    type: "website",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  maximumScale: 5,
 };
-
-import { Providers } from "@/components/providers";
 
 export default function RootLayout({
   children,
@@ -55,9 +59,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col dark">
         <Providers>
-          <TooltipProvider>
-            {children}
-          </TooltipProvider>
+          {children}
           <Toaster richColors position="bottom-right" />
         </Providers>
       </body>

@@ -2,28 +2,19 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { Menu, X, LayoutDashboard, ScanLine, Users, Settings } from "lucide-react";
-import { signOut, useSession } from "next-auth/react";
+import { Menu, X, ScanLine } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { APP_NAV_ITEMS } from "@/constants";
 
-const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Scan Card", href: "/scan", icon: ScanLine },
-  { name: "Leads", href: "/leads", icon: Users },
-  { name: "Account", href: "/account", icon: Settings },
-];
+const UserMenu = dynamic(
+  () => import("@/components/layout/user-menu").then((m) => m.UserMenu),
+  { ssr: false }
+);
 
 export function Topbar() {
   const { data: session, status } = useSession();
@@ -36,7 +27,9 @@ export function Topbar() {
     } else {
       document.body.style.overflow = "";
     }
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [mobileMenuOpen]);
 
   return (
@@ -82,39 +75,7 @@ export function Topbar() {
           {status === "loading" ? (
             <Skeleton className="h-9 w-9 rounded-full" />
           ) : session?.user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger >
-                <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                  <Avatar className="h-9 w-9 border border-border/50">
-                    <AvatarImage src={session.user.image || ""} alt={session.user.name || ""} />
-                    <AvatarFallback className="bg-primary/10 text-primary">
-                      {session.user.name?.charAt(0).toUpperCase() || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end">
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{session.user.name}</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {session.user.email}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem >
-                  <Link href="/account">Account Settings</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => signOut({ callbackUrl: "/" })}
-                >
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <UserMenu user={session.user} />
           ) : null}
         </div>
       </header>
@@ -123,7 +84,9 @@ export function Topbar() {
       <div
         className={cn(
           "fixed inset-0 z-50 transition-all duration-300",
-          mobileMenuOpen ? "pointer-events-auto" : "pointer-events-none"
+          mobileMenuOpen
+            ? "pointer-events-auto"
+            : "pointer-events-none"
         )}
       >
         {/* Backdrop */}
@@ -142,7 +105,11 @@ export function Topbar() {
           )}
         >
           <div className="h-16 flex items-center justify-between px-6 border-b border-sidebar-border">
-            <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               <div className="w-8 h-8 rounded-lg btn-gradient flex items-center justify-center">
                 <ScanLine className="w-4 h-4 text-white" />
               </div>
@@ -150,17 +117,21 @@ export function Topbar() {
                 CardScan
               </span>
             </Link>
-            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               <X className="h-5 w-5 text-sidebar-foreground" />
             </Button>
           </div>
-          
+
           <nav className="px-3 py-4 space-y-1">
-            {navigation.map((item) => {
+            {APP_NAV_ITEMS.map((item) => {
               const isActive = pathname.startsWith(item.href);
               return (
                 <Link
-                  key={item.name}
+                  key={item.href}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
                   className={cn(
@@ -170,8 +141,13 @@ export function Topbar() {
                       : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
                   )}
                 >
-                  <item.icon className={cn("mr-3 h-5 w-5", isActive ? "text-primary" : "")} />
-                  {item.name}
+                  <item.icon
+                    className={cn(
+                      "mr-3 h-5 w-5",
+                      isActive ? "text-primary" : ""
+                    )}
+                  />
+                  {item.title}
                 </Link>
               );
             })}

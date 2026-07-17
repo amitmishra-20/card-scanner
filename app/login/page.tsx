@@ -30,11 +30,16 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const validated = signInSchema.parse({ email, password });
-      
+      const validated = signInSchema.safeParse({ email, password });
+      if (!validated.success) {
+        const msg = validated.error.issues[0]?.message || "Invalid input";
+        toast.error(msg);
+        return;
+      }
+
       const result = await signIn("credentials", {
-        email: validated.email,
-        password: validated.password,
+        email: validated.data.email,
+        password: validated.data.password,
         redirect: false,
       });
 

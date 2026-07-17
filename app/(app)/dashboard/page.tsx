@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { 
-  Users, 
-  UserPlus, 
-  ScanLine, 
-  TrendingUp, 
+import {
+  Users,
+  UserPlus,
+  ScanLine,
+  TrendingUp,
   ArrowRight,
-  Clock
+  Clock,
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,24 +16,53 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getDashboardData } from "@/actions/leads";
 import type { DashboardStats, LeadStatus } from "@/types";
 import { LEAD_STATUS_CONFIG } from "@/constants";
+import dynamic from "next/dynamic";
+
+const DashboardChart = dynamic(
+  () =>
+    import("@/components/dashboard-chart").then((mod) => mod.DashboardChart),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-[250px] w-full rounded-xl" />,
+  }
+);
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchStats = async () => {
-      const res = await getDashboardData();
-      if (res.success && res.data) {
-        setStats(res.data as DashboardStats);
+      try {
+        const res = await getDashboardData();
+        if (res.success && res.data) {
+          setStats(res.data as DashboardStats);
+        } else {
+          setError(res.error || "Failed to load dashboard data");
+        }
+      } catch {
+        setError("Failed to load dashboard data");
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     fetchStats();
   }, []);
 
   if (isLoading) {
     return <DashboardSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[400px] text-center">
+        <p className="text-muted-foreground mb-4">{error}</p>
+        <Button variant="outline" onClick={() => window.location.reload()}>
+          Try Again
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -46,7 +75,6 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Stat Cards */}
         <Card className="glass">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -98,7 +126,7 @@ export default function DashboardPage() {
             <div className="text-3xl font-bold text-foreground">
               {stats?.scansThisMonth || 0}
               <span className="text-lg text-muted-foreground font-normal">
-                /{stats?.scanLimit === -1 ? '∞' : stats?.scanLimit}
+                /{stats?.scanLimit === -1 ? "∞" : stats?.scanLimit}
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -129,6 +157,24 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+        {/* Leads Over Time Chart */}
+        <Card className="glass">
+          <CardHeader>
+            <CardTitle>Leads Over Time</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stats?.leadsOverTime?.length ? (
+              <DashboardChart data={stats.leadsOverTime} />
+            ) : (
+              <div className="flex items-center justify-center h-[250px] text-muted-foreground">
+                <p className="text-sm">
+                  No data yet. Scan some cards to see trends.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Leads by Status */}
         <Card className="glass">
           <CardHeader>
@@ -138,12 +184,18 @@ export default function DashboardPage() {
             <div className="space-y-4">
               {stats?.leadsByStatus?.length ? (
                 stats.leadsByStatus.map((item) => {
-                  const config = LEAD_STATUS_CONFIG[item.status as LeadStatus];
-                  const percentage = Math.round((item.count / (stats.totalLeads || 1)) * 100);
-                  
+                  const config =
+                    LEAD_STATUS_CONFIG[item.status as LeadStatus];
+                  const percentage = Math.round(
+                    (item.count / (stats.totalLeads || 1)) * 100
+                  );
+
                   return (
                     <div key={item.status} className="flex items-center gap-4">
-                      <div className={`w-2 h-2 rounded-full`} style={{ backgroundColor: config.color }} />
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: config.color }}
+                      />
                       <div className="flex-1 flex justify-between items-center text-sm">
                         <span className="font-medium text-muted-foreground">
                           {config.label}
@@ -153,11 +205,11 @@ export default function DashboardPage() {
                         </span>
                       </div>
                       <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className="h-full rounded-full transition-all duration-1000"
-                          style={{ 
+                          style={{
                             backgroundColor: config.color,
-                            width: `${percentage}%` 
+                            width: `${percentage}%`,
                           }}
                         />
                       </div>
@@ -177,7 +229,11 @@ export default function DashboardPage() {
         <Card className="glass flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <CardTitle>Recent Leads</CardTitle>
-            <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-primary hover:text-primary/80"
+            >
               <Link href="/leads" className="flex items-center">
                 View All <ArrowRight className="w-4 h-4 ml-2" />
               </Link>
@@ -187,7 +243,10 @@ export default function DashboardPage() {
             <div className="space-y-6">
               {stats?.recentLeads?.length ? (
                 stats.recentLeads.map((lead) => (
-                  <div key={lead.id} className="flex items-center justify-between">
+                  <div
+                    key={lead.id}
+                    className="flex items-center justify-between"
+                  >
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
                         <span className="font-medium text-foreground">
@@ -199,12 +258,15 @@ export default function DashboardPage() {
                           {lead.name || "Unknown"}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {lead.designation} {lead.company ? `at ${lead.company}` : ''}
+                          {lead.designation}{" "}
+                          {lead.company ? `at ${lead.company}` : ""}
                         </p>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${LEAD_STATUS_CONFIG[lead.status as LeadStatus].bgClass} ${LEAD_STATUS_CONFIG[lead.status as LeadStatus].textClass}`}>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${LEAD_STATUS_CONFIG[lead.status as LeadStatus].bgClass} ${LEAD_STATUS_CONFIG[lead.status as LeadStatus].textClass}`}
+                      >
                         {LEAD_STATUS_CONFIG[lead.status as LeadStatus].label}
                       </span>
                       <span className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -219,8 +281,12 @@ export default function DashboardPage() {
                   <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
                     <Users className="w-5 h-5 text-muted-foreground/50" />
                   </div>
-                  <p className="text-sm text-foreground font-medium mb-1">No leads found</p>
-                  <p className="text-xs text-muted-foreground">Scan a business card to get started</p>
+                  <p className="text-sm text-foreground font-medium mb-1">
+                    No leads found
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Scan a business card to get started
+                  </p>
                 </div>
               )}
             </div>

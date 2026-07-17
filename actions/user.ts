@@ -8,7 +8,10 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { signUpSchema, updateProfileSchema } from "@/lib/validations";
-import { getOrCreateSubscription, getCurrentUsage } from "@/services/subscription.service";
+import {
+  getOrCreateSubscription,
+  getCurrentUsage,
+} from "@/services/subscription.service";
 import type { ActionResult, UserProfile } from "@/types";
 
 /**
@@ -27,28 +30,47 @@ export async function registerUser(formData: {
 
     const { name, email, password } = validated.data;
 
-    // Check if user exists
-    const existing = await db.user.findUnique({ where: { email } });
-    if (existing) {
-      return { success: false, error: "Email already registered" };
-    }
-
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    const user = await db.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-      },
-    });
+    // Use create and catch unique constraint error instead of findUnique + create
+    // to prevent race conditions
+    const user = await db.user
+      .create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+        },
+      })
+      .catch((error) => {
+        if (
+          error instanceof Error &&
+          error.message.includes("Unique constraint")
+        ) {
+          return null;
+        }
+        throw error;
+      });
+
+    if (!user) {
+      // Return generic error to prevent user enumeration
+      return { success: false, error: "Registration failed" };
+    }
 
     // Auto-assign free plan
-    await getOrCreateSubscription(user.id);
+    await getOrCreateSubscription(user.id).catch((error) => {
+      console.error(
+        "Failed to create subscription:",
+        error instanceof Error ? error.message : error
+      );
+    });
 
     return { success: true, data: { id: user.id } };
   } catch (error) {
-    console.error("Register error:", error);
+    console.error(
+      "Register error:",
+      error instanceof Error ? error.message : error
+    );
     return { success: false, error: "Registration failed" };
   }
 }
@@ -73,8 +95,10 @@ export async function getUserProfileAction(): Promise<
       return { success: false, error: "User not found" };
     }
 
-    const subscription = await getOrCreateSubscription(session.user.id);
-    const scansUsed = await getCurrentUsage(session.user.id);
+    const [subscription, scansUsed] = await Promise.all([
+      getOrCreateSubscription(session.user.id),
+      getCurrentUsage(session.user.id),
+    ]);
 
     return {
       success: true,
@@ -89,7 +113,10 @@ export async function getUserProfileAction(): Promise<
       },
     };
   } catch (error) {
-    console.error("Get profile error:", error);
+    console.error(
+      "Get profile error:",
+      error instanceof Error ? error.message : error
+    );
     return { success: false, error: "Failed to fetch profile" };
   }
 }
@@ -118,7 +145,10 @@ export async function updateProfileAction(
 
     return { success: true };
   } catch (error) {
-    console.error("Update profile error:", error);
+    console.error(
+      "Update profile error:",
+      error instanceof Error ? error.message : error
+    );
     return { success: false, error: "Failed to update profile" };
   }
 }
@@ -139,7 +169,10 @@ export async function deleteAccountAction(): Promise<ActionResult> {
 
     return { success: true };
   } catch (error) {
-    console.error("Delete account error:", error);
+    console.error(
+      "Delete account error:",
+      error instanceof Error ? error.message : error
+    );
     return { success: false, error: "Failed to delete account" };
   }
 }
@@ -147,7 +180,11 @@ export async function deleteAccountAction(): Promise<ActionResult> {
 /**
  * Check if Google OAuth is configured
  */
-export async function getAuthConfigAction(): Promise<ActionResult<{ googleEnabled: boolean }>> {
-  const googleEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+export async function getAuthConfigAction(): Promise<
+  ActionResult<{ googleEnabled: boolean }>
+> {
+  const googleEnabled = !!(
+    process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+  );
   return { success: true, data: { googleEnabled } };
 }

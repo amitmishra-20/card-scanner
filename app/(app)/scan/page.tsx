@@ -2,7 +2,15 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Camera, FileText, Loader2, Save, ScanLine, X } from "lucide-react";
+import {
+  Upload,
+  Camera,
+  FileText,
+  Loader2,
+  Save,
+  ScanLine,
+  X,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +21,10 @@ import { extractCardData } from "@/actions/scan";
 import { createLead } from "@/actions/leads";
 import type { ExtractedCardData } from "@/types";
 
+const MAX_DIM = 1600;
+const IMAGE_QUALITY = 0.85;
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
 export default function ScanPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -21,35 +33,51 @@ export default function ScanPage() {
   const [isScanning, setIsScanning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [cardData, setCardData] = useState<ExtractedCardData | null>(null);
+  const [parseFailed, setParseFailed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [notes, setNotes] = useState("");
 
   useEffect(() => {
-    setIsMobile('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    setIsMobile(
+      "ontouchstart" in window || navigator.maxTouchPoints > 0
+    );
   }, []);
 
   const compressImage = (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-      const maxDim = 1600;
+    return new Promise((resolve, reject) => {
       const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+
       img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
         let { width, height } = img;
-        if (width > maxDim || height > maxDim) {
+        if (width > MAX_DIM || height > MAX_DIM) {
           if (width > height) {
-            height = Math.round((height / width) * maxDim);
-            width = maxDim;
+            height = Math.round((height / width) * MAX_DIM);
+            width = MAX_DIM;
           } else {
-            width = Math.round((width / height) * maxDim);
-            height = maxDim;
+            width = Math.round((width / height) * MAX_DIM);
+            height = MAX_DIM;
           }
         }
         const canvas = document.createElement("canvas");
         canvas.width = width;
         canvas.height = height;
-        const ctx = canvas.getContext("2d")!;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Failed to get canvas context"));
+          return;
+        }
         ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL(file.type, 0.85));
+        resolve(canvas.toDataURL(file.type, IMAGE_QUALITY));
       };
-      img.src = URL.createObjectURL(file);
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Failed to load image. The file may be corrupted."));
+      };
+
+      img.src = objectUrl;
     });
   };
 
@@ -57,30 +85,51 @@ export default function ScanPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file (JPG, PNG)");
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      toast.error("Please upload a JPEG, PNG, or WebP image.");
       return;
     }
 
-    const base64 = await compressImage(file);
-    setImagePreview(base64);
-    await processImage(base64, file.type);
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("Image is too large. Maximum size is 10MB.");
+      return;
+    }
+
+    try {
+      const base64 = await compressImage(file);
+      setImagePreview(base64);
+      await processImage(base64, file.type);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to process image"
+      );
+    }
   };
 
   const processImage = async (base64Image: string, mimeType: string) => {
     setIsScanning(true);
     setCardData(null);
+    setParseFailed(false);
     try {
       const res = await extractCardData(base64Image, mimeType);
-      
+
       if (!res.success || !res.data) {
         toast.error(res.error || "Failed to extract data");
         return;
       }
 
-      setCardData(res.data);
-      toast.success("Card scanned successfully!");
-    } catch (error) {
+      if (res.data.parseFailed) {
+        setParseFailed(true);
+        toast.warning(
+          "AI couldn't fully parse this card. Review the extracted data below."
+        );
+      } else {
+        toast.success("Card scanned successfully!");
+      }
+
+      setCardData(res.data.cardData);
+    } catch {
       toast.error("Something went wrong during extraction.");
     } finally {
       setIsScanning(false);
@@ -90,6 +139,8 @@ export default function ScanPage() {
   const resetScan = () => {
     setImagePreview(null);
     setCardData(null);
+    setNotes("");
+    setParseFailed(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -107,7 +158,7 @@ export default function ScanPage() {
         phones: cardData.phones,
         websites: cardData.websites,
         address: cardData.address,
-        notes: null
+        notes: notes || null,
       });
 
       if (!res.success) {
@@ -117,7 +168,7 @@ export default function ScanPage() {
 
       toast.success("Lead saved successfully!");
       router.push("/leads");
-    } catch (error) {
+    } catch {
       toast.error("Failed to save lead");
     } finally {
       setIsSaving(false);
@@ -128,13 +179,19 @@ export default function ScanPage() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Scan Business Card</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Scan Business Card
+          </h1>
           <p className="text-muted-foreground mt-2">
             Upload or snap a photo of a business card to extract details.
           </p>
         </div>
         {imagePreview && (
-          <Button variant="outline" onClick={resetScan} className="w-full sm:w-auto">
+          <Button
+            variant="outline"
+            onClick={resetScan}
+            className="w-full sm:w-auto"
+          >
             <ScanLine className="w-4 h-4 mr-2" />
             Scan Another
           </Button>
@@ -146,32 +203,47 @@ export default function ScanPage() {
         {[
           { label: "Upload", active: !imagePreview && !isScanning && !cardData },
           { label: "Scanning", active: isScanning },
-          { label: "Review", active: !!cardData && !isScanning && !isSaving },
+          {
+            label: "Review",
+            active: !!cardData && !isScanning && !isSaving,
+          },
           { label: "Save", active: isSaving },
         ].map((step, i) => (
           <div key={step.label} className="flex items-center">
             <div className="flex items-center gap-2">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors duration-300 ${
-                step.active
-                  ? "bg-primary text-primary-foreground"
-                  : (step.active || (!isScanning && !cardData && !isSaving && i === 0) || (isScanning && i <= 1) || (cardData && !isSaving && i <= 2) || (isSaving && i <= 3))
-                    ? "bg-primary/20 text-primary"
-                    : "bg-muted text-muted-foreground"
-              }`}>
+              <div
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors duration-300 ${
+                  step.active
+                    ? "bg-primary text-primary-foreground"
+                    : step.active ||
+                        (!isScanning && !cardData && !isSaving && i === 0) ||
+                        (isScanning && i <= 1) ||
+                        (cardData && !isSaving && i <= 2) ||
+                        (isSaving && i <= 3)
+                      ? "bg-primary/20 text-primary"
+                      : "bg-muted text-muted-foreground"
+                }`}
+              >
                 {i + 1}
               </div>
-              <span className={`text-xs font-medium hidden sm:inline transition-colors duration-300 ${
-                step.active ? "text-foreground" : "text-muted-foreground"
-              }`}>
+              <span
+                className={`text-xs font-medium hidden sm:inline transition-colors duration-300 ${
+                  step.active ? "text-foreground" : "text-muted-foreground"
+                }`}
+              >
                 {step.label}
               </span>
             </div>
             {i < 3 && (
-              <div className={`w-8 sm:w-12 h-px mx-2 transition-colors duration-300 ${
-                (isScanning && i === 0) || (cardData && !isSaving && i <= 1) || (isSaving && i <= 2)
-                  ? "bg-primary"
-                  : "bg-border"
-              }`} />
+              <div
+                className={`w-8 sm:w-12 h-px mx-2 transition-colors duration-300 ${
+                  (isScanning && i === 0) ||
+                  (cardData && !isSaving && i <= 1) ||
+                  (isSaving && i <= 2)
+                    ? "bg-primary"
+                    : "bg-border"
+                }`}
+              />
             )}
           </div>
         ))}
@@ -183,26 +255,30 @@ export default function ScanPage() {
           <Card className="glass overflow-hidden border-border/50 shadow-xl shadow-black/5">
             <CardContent className="p-0">
               {!imagePreview ? (
-                <div 
+                <div
                   className="flex flex-col items-center justify-center aspect-[4/3] bg-muted/20 border-2 border-dashed border-border m-6 rounded-xl hover:bg-muted/40 transition-colors cursor-pointer"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <div className="w-16 h-16 rounded-full bg-background flex items-center justify-center mb-4 shadow-sm">
                     <Upload className="w-8 h-8 text-muted-foreground" />
                   </div>
-                  <h3 className="font-semibold text-lg mb-1">Upload Card Image</h3>
+                  <h3 className="font-semibold text-lg mb-1">
+                    Upload Card Image
+                  </h3>
                   <p className="text-sm text-muted-foreground mb-6 text-center max-w-xs px-4">
                     {isMobile
                       ? "Take a photo or choose a file. JPEG or PNG up to 10MB."
-                      : "Drag and drop or click to browse. JPEG or PNG up to 10MB."
-                    }
+                      : "Drag and drop or click to browse. JPEG or PNG up to 10MB."}
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto px-4 sm:px-0">
                     <Button
                       variant="secondary"
                       className="glass w-full sm:w-auto"
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        fileInputRef.current?.click();
+                      }}
                     >
                       <FileText className="w-4 h-4 mr-2" /> Browse Files
                     </Button>
@@ -210,7 +286,10 @@ export default function ScanPage() {
                       variant="secondary"
                       className="glass w-full sm:w-auto"
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click(); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        cameraInputRef.current?.click();
+                      }}
                     >
                       <Camera className="w-4 h-4 mr-2" /> Take Photo
                     </Button>
@@ -226,30 +305,36 @@ export default function ScanPage() {
                     type="file"
                     ref={cameraInputRef}
                     className="hidden"
-                    accept="image/*"
+                    accept="image/jpeg, image/png, image/webp"
                     capture="environment"
                     onChange={handleFileChange}
                   />
                 </div>
               ) : (
                 <div className="relative aspect-[4/3] w-full bg-black/90">
-                  <img 
-                    src={imagePreview} 
-                    alt="Card Preview" 
+                  <img
+                    src={imagePreview}
+                    alt="Card Preview"
                     className="w-full h-full object-contain"
+                    width={MAX_DIM}
+                    height={MAX_DIM}
                   />
                   {isScanning && (
                     <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex flex-col items-center justify-center">
                       <div className="w-16 h-16 rounded-full bg-background flex items-center justify-center mb-4 pulse-ring shadow-lg shadow-primary/20">
                         <ScanLine className="w-8 h-8 text-primary" />
                       </div>
-                      <p className="font-medium text-foreground">Extracting Data...</p>
-                      <p className="text-sm text-muted-foreground">Using Gemini AI</p>
+                      <p className="font-medium text-foreground">
+                        Extracting Data...
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Using Gemini AI
+                      </p>
                     </div>
                   )}
-                  <Button 
-                    variant="destructive" 
-                    size="icon" 
+                  <Button
+                    variant="destructive"
+                    size="icon"
                     className="absolute top-4 right-4 rounded-full shadow-lg"
                     onClick={resetScan}
                     disabled={isScanning || isSaving}
@@ -264,99 +349,176 @@ export default function ScanPage() {
 
         {/* Right Column: Extracted Data Form */}
         <div className="space-y-6">
-          <Card className={`glass border-border/50 shadow-xl shadow-black/5 transition-opacity duration-300 ${isScanning ? 'opacity-50 pointer-events-none' : ''}`}>
+          <Card
+            className={`glass border-border/50 shadow-xl shadow-black/5 transition-opacity duration-300 ${
+              isScanning ? "opacity-50 pointer-events-none" : ""
+            }`}
+            aria-disabled={isScanning}
+          >
             <CardContent className="p-6">
               {!cardData && !isScanning ? (
                 <div className="flex flex-col items-center justify-center h-[400px] text-center px-4">
                   <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
                     <FileText className="w-6 h-6 text-muted-foreground/50" />
                   </div>
-                  <h3 className="font-medium text-foreground mb-1">Awaiting Scan</h3>
+                  <h3 className="font-medium text-foreground mb-1">
+                    Awaiting Scan
+                  </h3>
                   <p className="text-sm text-muted-foreground max-w-[250px]">
-                    Upload a business card image to automatically extract and populate this form.
+                    Upload a business card image to automatically extract and
+                    populate this form.
                   </p>
                 </div>
               ) : (
                 <form onSubmit={handleSave} className="space-y-5">
+                  {parseFailed && (
+                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm text-amber-400">
+                      AI parsing was incomplete. Please review all fields before
+                      saving.
+                    </div>
+                  )}
+
                   <div className="space-y-1">
                     <Label htmlFor="name">Full Name</Label>
-                    <Input 
-                      id="name" 
-                      value={cardData?.name || ''} 
-                      onChange={(e) => setCardData(prev => prev ? {...prev, name: e.target.value} : null)}
+                    <Input
+                      id="name"
+                      value={cardData?.name || ""}
+                      onChange={(e) =>
+                        setCardData((prev) =>
+                          prev ? { ...prev, name: e.target.value } : null
+                        )
+                      }
                       className="bg-background/50"
                       required
                     />
                   </div>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-1">
                       <Label htmlFor="designation">Job Title</Label>
-                      <Input 
-                        id="designation" 
-                        value={cardData?.designation || ''} 
-                        onChange={(e) => setCardData(prev => prev ? {...prev, designation: e.target.value} : null)}
+                      <Input
+                        id="designation"
+                        value={cardData?.designation || ""}
+                        onChange={(e) =>
+                          setCardData((prev) =>
+                            prev
+                              ? { ...prev, designation: e.target.value }
+                              : null
+                          )
+                        }
                         className="bg-background/50"
                       />
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor="company">Company</Label>
-                      <Input 
-                        id="company" 
-                        value={cardData?.company || ''} 
-                        onChange={(e) => setCardData(prev => prev ? {...prev, company: e.target.value} : null)}
-                        className="bg-background/50"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div className="space-y-1">
-                      <Label htmlFor="email">Email</Label>
-                      <Input 
-                        id="email" 
-                        type="email"
-                        value={cardData?.emails[0] || ''} 
-                        onChange={(e) => setCardData(prev => prev ? {...prev, emails: [e.target.value, ...prev.emails.slice(1)]} : null)}
-                        className="bg-background/50"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input 
-                        id="phone" 
-                        value={cardData?.phones[0] || ''} 
-                        onChange={(e) => setCardData(prev => prev ? {...prev, phones: [e.target.value, ...prev.phones.slice(1)]} : null)}
+                      <Input
+                        id="company"
+                        value={cardData?.company || ""}
+                        onChange={(e) =>
+                          setCardData((prev) =>
+                            prev ? { ...prev, company: e.target.value } : null
+                          )
+                        }
                         className="bg-background/50"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1">
-                    <Label htmlFor="website">Website</Label>
-                    <Input 
-                      id="website" 
-                      type="url"
-                      value={cardData?.websites[0] || ''} 
-                      onChange={(e) => setCardData(prev => prev ? {...prev, websites: [e.target.value, ...prev.websites.slice(1)]} : null)}
+                    <Label htmlFor="email">Emails (comma separated)</Label>
+                    <Input
+                      id="email"
+                      value={cardData?.emails.join(", ") || ""}
+                      onChange={(e) =>
+                        setCardData((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                emails: e.target.value
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter(Boolean),
+                              }
+                            : null
+                        )
+                      }
+                      className="bg-background/50"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="phone">Phones (comma separated)</Label>
+                    <Input
+                      id="phone"
+                      value={cardData?.phones.join(", ") || ""}
+                      onChange={(e) =>
+                        setCardData((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                phones: e.target.value
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter(Boolean),
+                              }
+                            : null
+                        )
+                      }
+                      className="bg-background/50"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="website">Websites (comma separated)</Label>
+                    <Input
+                      id="website"
+                      value={cardData?.websites.join(", ") || ""}
+                      onChange={(e) =>
+                        setCardData((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                websites: e.target.value
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter(Boolean),
+                              }
+                            : null
+                        )
+                      }
                       className="bg-background/50"
                     />
                   </div>
 
                   <div className="space-y-1">
                     <Label htmlFor="address">Address</Label>
-                    <Textarea 
-                      id="address" 
-                      value={cardData?.address || ''} 
-                      onChange={(e) => setCardData(prev => prev ? {...prev, address: e.target.value} : null)}
+                    <Textarea
+                      id="address"
+                      value={cardData?.address || ""}
+                      onChange={(e) =>
+                        setCardData((prev) =>
+                          prev ? { ...prev, address: e.target.value } : null
+                        )
+                      }
+                      className="bg-background/50 resize-none"
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Add any notes about this contact..."
                       className="bg-background/50 resize-none"
                       rows={2}
                     />
                   </div>
 
                   <div className="pt-4 border-t border-border/50">
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       className="w-full btn-gradient shadow-lg shadow-primary/20"
                       disabled={isSaving || isScanning || !cardData}
                     >

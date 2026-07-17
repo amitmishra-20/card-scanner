@@ -4,8 +4,14 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ScanLine, Menu, X } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import dynamic from "next/dynamic";
+
+const ViewfinderChrome = dynamic(
+  () => import("./viewfinder-chrome").then((m) => m.ViewfinderChrome),
+  { ssr: false }
+);
 
 const navLinks = [
   { label: "Product", href: "#features" },
@@ -24,16 +30,18 @@ export function MarketingNavbar() {
   }, []);
 
   return (
-    <motion.nav
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ type: "spring", stiffness: 100, damping: 20 }}
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        scrolled
-          ? "glass-strong shadow-lg shadow-black/10"
-          : "bg-transparent"
-      }`}
-    >
+    <>
+      <ViewfinderChrome />
+      <motion.nav
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        transition={{ type: "spring", stiffness: 100, damping: 20 }}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+          scrolled
+            ? "glass-strong shadow-lg shadow-black/10"
+            : "bg-transparent"
+        }`}
+      >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -113,5 +121,6 @@ export function MarketingNavbar() {
         )}
       </AnimatePresence>
     </motion.nav>
+    </>
   );
 }

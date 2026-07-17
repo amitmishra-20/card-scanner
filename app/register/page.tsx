@@ -31,12 +31,17 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const validated = signUpSchema.parse({ name, email, password });
-      
+      const validated = signUpSchema.safeParse({ name, email, password });
+      if (!validated.success) {
+        const msg = validated.error.issues[0]?.message || "Invalid input";
+        toast.error(msg);
+        return;
+      }
+
       const res = await registerUser({
-        name: validated.name,
-        email: validated.email,
-        password: validated.password,
+        name: validated.data.name,
+        email: validated.data.email,
+        password: validated.data.password,
       });
 
       if (!res.success) {
@@ -46,8 +51,8 @@ export default function RegisterPage() {
 
       // Auto login after registration
       const result = await signIn("credentials", {
-        email: validated.email,
-        password: validated.password,
+        email: validated.data.email,
+        password: validated.data.password,
         redirect: false,
       });
 
@@ -150,6 +155,9 @@ export default function RegisterPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="bg-background/50 focus:bg-background"
               />
+              <p className="text-[10px] text-muted-foreground">
+                Minimum 8 characters
+              </p>
             </div>
 
             <Button

@@ -1,8 +1,10 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import { 
-  Users, 
-  Search, 
+
+import { useState, useCallback, useRef } from "react";
+import dynamic from "next/dynamic";
+import {
+  Users,
+  Search,
   MoreVertical,
   Mail,
   Phone,
@@ -11,33 +13,43 @@ import {
   Edit,
   ChevronLeft,
   ChevronRight,
-  Download
+  Download,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { getLeads, deleteLeadAction, updateLeadStatusAction, updateLead } from "@/actions/leads";
+  getLeads,
+  deleteLeadAction,
+  updateLeadStatusAction,
+  updateLead,
+} from "@/actions/leads";
 import { LEAD_STATUS_CONFIG } from "@/constants";
 import type { Lead, LeadStatus } from "@/types";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const LeadDeleteDialog = dynamic(
+  () =>
+    import("@/components/leads/lead-delete-dialog").then(
+      (m) => m.LeadDeleteDialog
+    ),
+  { ssr: false }
+);
+const LeadEditDialog = dynamic(
+  () =>
+    import("@/components/leads/lead-edit-dialog").then(
+      (m) => m.LeadEditDialog
+    ),
+  { ssr: false }
+);
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -62,22 +74,38 @@ export default function LeadsPage() {
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  const fetchLeads = useCallback(async (search = "", status?: string | null, p = 1) => {
-    setIsLoading(true);
-    const res = await getLeads({ search, status: status as LeadStatus | undefined, page: p });
-    if (res.success && res.data) {
-      setLeads(res.data.leads as Lead[]);
-      setTotalPages(res.data.totalPages);
-    }
-    setIsLoading(false);
-  }, []);
+  // Confirm delete dialog
+  const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      fetchLeads();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [fetchLeads]);
+  const fetchLeads = useCallback(
+    async (search = "", status?: string | null, p = 1) => {
+      setIsLoading(true);
+      try {
+        const res = await getLeads({
+          search,
+          status: status as LeadStatus | undefined,
+          page: p,
+        });
+        if (res.success && res.data) {
+          setLeads(res.data.leads as Lead[]);
+          setTotalPages(res.data.totalPages);
+        } else {
+          toast.error(res.error || "Failed to load leads");
+        }
+      } catch {
+        toast.error("Failed to load leads");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
+  const handleInitialLoad = useRef(true);
+  if (handleInitialLoad.current) {
+    handleInitialLoad.current = false;
+    fetchLeads();
+  }
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,23 +120,38 @@ export default function LeadsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this lead?")) return;
-    const res = await deleteLeadAction(id);
-    if (res.success) {
-      toast.success("Lead deleted");
-      setLeads(leads.filter(l => l.id !== id));
-    } else {
-      toast.error(res.error || "Failed to delete lead");
+    setDeletingLeadId(null);
+    try {
+      const res = await deleteLeadAction(id);
+      if (res.success) {
+        toast.success("Lead deleted");
+        setLeads(leads.filter((l) => l.id !== id));
+      } else {
+        toast.error(res.error || "Failed to delete lead");
+      }
+    } catch {
+      toast.error("Failed to delete lead");
     }
   };
 
   const handleStatusChange = async (leadId: string, status: LeadStatus) => {
-    const res = await updateLeadStatusAction(leadId, status);
-    if (res.success) {
-      toast.success(`Status updated to ${LEAD_STATUS_CONFIG[status].label}`);
-      setLeads(leads.map(l => l.id === leadId ? { ...l, status } : l));
-    } else {
-      toast.error(res.error || "Failed to update status");
+    // Optimistic update
+    const previousLeads = leads;
+    setLeads((prev) =>
+      prev.map((l) => (l.id === leadId ? { ...l, status } : l))
+    );
+
+    try {
+      const res = await updateLeadStatusAction(leadId, status);
+      if (res.success) {
+        toast.success(`Status updated to ${LEAD_STATUS_CONFIG[status].label}`);
+      } else {
+        setLeads(previousLeads); // revert
+        toast.error(res.error || "Failed to update status");
+      }
+    } catch {
+      setLeads(previousLeads); // revert
+      toast.error("Failed to update status");
     }
   };
 
@@ -130,25 +173,39 @@ export default function LeadsPage() {
   const handleSaveEdit = async () => {
     if (!editingLead) return;
     setIsSaving(true);
-    const res = await updateLead({
-      id: editingLead.id,
-      name: editForm.name || null,
-      designation: editForm.designation || null,
-      company: editForm.company || null,
-      emails: editForm.emails.split(",").map(e => e.trim()).filter(Boolean),
-      phones: editForm.phones.split(",").map(p => p.trim()).filter(Boolean),
-      websites: editForm.websites.split(",").map(w => w.trim()).filter(Boolean),
-      address: editForm.address || null,
-      notes: editForm.notes || null,
-      status: editForm.status,
-    });
-    setIsSaving(false);
-    if (res.success) {
-      toast.success("Lead updated");
-      setEditingLead(null);
-      fetchLeads(searchQuery, activeFilter, page);
-    } else {
-      toast.error(res.error || "Failed to update lead");
+    try {
+      const res = await updateLead({
+        id: editingLead.id,
+        name: editForm.name || null,
+        designation: editForm.designation || null,
+        company: editForm.company || null,
+        emails: editForm.emails
+          .split(",")
+          .map((e) => e.trim())
+          .filter(Boolean),
+        phones: editForm.phones
+          .split(",")
+          .map((p) => p.trim())
+          .filter(Boolean),
+        websites: editForm.websites
+          .split(",")
+          .map((w) => w.trim())
+          .filter(Boolean),
+        address: editForm.address || null,
+        notes: editForm.notes || null,
+        status: editForm.status,
+      });
+      if (res.success) {
+        toast.success("Lead updated");
+        setEditingLead(null);
+        fetchLeads(searchQuery, activeFilter, page);
+      } else {
+        toast.error(res.error || "Failed to update lead");
+      }
+    } catch {
+      toast.error("Failed to update lead");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -157,8 +214,18 @@ export default function LeadsPage() {
       toast.error("No leads to export");
       return;
     }
-    const headers = ["Name", "Designation", "Company", "Emails", "Phones", "Websites", "Address", "Notes", "Status"];
-    const rows = leads.map(l => [
+    const headers = [
+      "Name",
+      "Designation",
+      "Company",
+      "Emails",
+      "Phones",
+      "Websites",
+      "Address",
+      "Notes",
+      "Status",
+    ];
+    const rows = leads.map((l) => [
       l.name || "",
       l.designation || "",
       l.company || "",
@@ -169,7 +236,9 @@ export default function LeadsPage() {
       l.notes || "",
       LEAD_STATUS_CONFIG[l.status]?.label || l.status,
     ]);
-    const csv = [headers, ...rows].map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csv = [headers, ...rows]
+      .map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(","))
+      .join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -189,9 +258,14 @@ export default function LeadsPage() {
             Manage your extracted contacts and track their status.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExportCSV} className="shrink-0">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportCSV}
+          className="shrink-0"
+        >
           <Download className="w-4 h-4 mr-2" />
-          Export CSV
+          Export CSV ({leads.length})
         </Button>
       </div>
 
@@ -206,21 +280,21 @@ export default function LeadsPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </form>
-          
+
           <div className="flex gap-2 w-full overflow-x-auto pb-1 hide-scrollbar">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => handleFilter(null)} 
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleFilter(null)}
               className={`shrink-0 ${activeFilter === null ? "bg-primary text-primary-foreground" : "bg-background"}`}
             >
               All
             </Button>
             {Object.entries(LEAD_STATUS_CONFIG).map(([status, config]) => (
-              <Button 
-                key={status} 
-                variant="outline" 
-                size="sm" 
+              <Button
+                key={status}
+                variant="outline"
+                size="sm"
                 onClick={() => handleFilter(status)}
                 className={`shrink-0 ${activeFilter === status ? "bg-primary text-primary-foreground" : "bg-background"}`}
               >
@@ -229,127 +303,177 @@ export default function LeadsPage() {
             ))}
           </div>
         </div>
-        
+
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-muted-foreground uppercase bg-muted/30">
                 <tr>
                   <th className="px-6 py-4 font-medium">Contact Details</th>
-                  <th className="px-6 py-4 font-medium hidden md:table-cell">Company</th>
-                  <th className="px-6 py-4 font-medium hidden sm:table-cell">Contact Info</th>
+                  <th className="px-6 py-4 font-medium hidden md:table-cell">
+                    Company
+                  </th>
+                  <th className="px-6 py-4 font-medium hidden sm:table-cell">
+                    Contact Info
+                  </th>
                   <th className="px-6 py-4 font-medium">Status</th>
                   <th className="px-6 py-4 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {isLoading ? (
-                  [...Array(5)].map((_, i) => (
-                    <tr key={i} className="bg-card/30">
-                      <td className="px-6 py-4"><Skeleton className="h-10 w-32" /></td>
-                      <td className="px-6 py-4 hidden md:table-cell"><Skeleton className="h-5 w-24" /></td>
-                      <td className="px-6 py-4 hidden sm:table-cell"><Skeleton className="h-8 w-32" /></td>
-                      <td className="px-6 py-4"><Skeleton className="h-6 w-20 rounded-full" /></td>
-                      <td className="px-6 py-4 text-right"><Skeleton className="h-8 w-8 ml-auto rounded-md" /></td>
-                    </tr>
-                  ))
-                ) : leads.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
-                      <div className="flex flex-col items-center justify-center">
-                        <Users className="w-8 h-8 mb-3 opacity-20" />
-                        <p>No leads found.</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  leads.map((lead) => {
-                    const statusConfig = LEAD_STATUS_CONFIG[lead.status];
-                    return (
-                      <tr key={lead.id} className="hover:bg-muted/20 transition-colors group">
-                        <td className="px-6 py-4 min-w-0">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium shrink-0">
-                              {lead.name?.charAt(0).toUpperCase() || "?"}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="font-medium text-foreground truncate max-w-37.5">{lead.name || "Unknown"}</div>
-                              <div className="text-xs text-muted-foreground mt-0.5 truncate max-w-37.5">{lead.designation || "No title"}</div>
-                            </div>
-                          </div>
+                {isLoading
+                  ? [...Array(5)].map((_, i) => (
+                      <tr key={i} className="bg-card/30">
+                        <td className="px-6 py-4">
+                          <Skeleton className="h-10 w-32" />
                         </td>
                         <td className="px-6 py-4 hidden md:table-cell">
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            {lead.company ? (
-                              <>
-                                <Building className="w-3.5 h-3.5 shrink-0" />
-                                <span className="truncate max-w-37.5">{lead.company}</span>
-                              </>
-                            ) : (
-                              <span className="text-muted-foreground/50">—</span>
-                            )}
-                          </div>
+                          <Skeleton className="h-5 w-24" />
                         </td>
                         <td className="px-6 py-4 hidden sm:table-cell">
-                          <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-                            {lead.emails[0] && (
-                              <div className="flex items-center gap-2">
-                                <Mail className="w-3.5 h-3.5 shrink-0" />
-                                <span className="truncate max-w-37.5">{lead.emails[0]}</span>
-                              </div>
-                            )}
-                            {lead.phones[0] && (
-                              <div className="flex items-center gap-2">
-                                <Phone className="w-3.5 h-3.5 shrink-0" />
-                                <span>{lead.phones[0]}</span>
-                              </div>
-                            )}
-                            {!lead.emails[0] && !lead.phones[0] && (
-                              <span className="text-muted-foreground/50">No contact info</span>
-                            )}
-                          </div>
+                          <Skeleton className="h-8 w-32" />
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border border-transparent ${statusConfig.bgClass} ${statusConfig.textClass}`}>
-                            {statusConfig.label}
-                          </span>
+                          <Skeleton className="h-6 w-20 rounded-full" />
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger>
-                              <Button variant="ghost" className="h-8 w-8 p-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                <span className="sr-only">Open menu</span>
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem className="cursor-pointer" onClick={() => openEditDialog(lead)}>
-                                <Edit className="w-4 h-4 mr-2" /> Edit details
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              {Object.entries(LEAD_STATUS_CONFIG).map(([status, config]) => (
-                                <DropdownMenuItem 
-                                  key={status} 
-                                  className="cursor-pointer"
-                                  onClick={() => handleStatusChange(lead.id, status as LeadStatus)}
-                                >
-                                  Mark as {config.label}
-                                </DropdownMenuItem>
-                              ))}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                className="text-destructive focus:text-destructive cursor-pointer"
-                                onClick={() => handleDelete(lead.id)}
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" /> Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <Skeleton className="h-8 w-8 ml-auto rounded-md" />
                         </td>
                       </tr>
-                    );
-                  })
-                )}
+                    ))
+                  : leads.length === 0
+                    ? (
+                        <tr>
+                          <td
+                            colSpan={5}
+                            className="px-6 py-12 text-center text-muted-foreground"
+                          >
+                            <div className="flex flex-col items-center justify-center">
+                              <Users className="w-8 h-8 mb-3 opacity-20" />
+                              <p>No leads found.</p>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    : leads.map((lead) => {
+                        const statusConfig = LEAD_STATUS_CONFIG[lead.status];
+                        return (
+                          <tr
+                            key={lead.id}
+                            className="hover:bg-muted/20 transition-colors group"
+                          >
+                            <td className="px-6 py-4 min-w-0">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium shrink-0">
+                                  {lead.name?.charAt(0).toUpperCase() || "?"}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-medium text-foreground truncate max-w-37.5">
+                                    {lead.name || "Unknown"}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-0.5 truncate max-w-37.5">
+                                    {lead.designation || "No title"}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 hidden md:table-cell">
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                {lead.company ? (
+                                  <>
+                                    <Building className="w-3.5 h-3.5 shrink-0" />
+                                    <span className="truncate max-w-37.5">
+                                      {lead.company}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span className="text-muted-foreground/50">
+                                    —
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 hidden sm:table-cell">
+                              <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                                {lead.emails[0] && (
+                                  <div className="flex items-center gap-2">
+                                    <Mail className="w-3.5 h-3.5 shrink-0" />
+                                    <span className="truncate max-w-37.5">
+                                      {lead.emails[0]}
+                                    </span>
+                                  </div>
+                                )}
+                                {lead.phones[0] && (
+                                  <div className="flex items-center gap-2">
+                                    <Phone className="w-3.5 h-3.5 shrink-0" />
+                                    <span>{lead.phones[0]}</span>
+                                  </div>
+                                )}
+                                {!lead.emails[0] && !lead.phones[0] && (
+                                  <span className="text-muted-foreground/50">
+                                    No contact info
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border border-transparent ${statusConfig.bgClass} ${statusConfig.textClass}`}
+                              >
+                                {statusConfig.label}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger>
+                                  <Button
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <span className="sr-only">Open menu</span>
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    className="cursor-pointer"
+                                    onClick={() => openEditDialog(lead)}
+                                  >
+                                    <Edit className="w-4 h-4 mr-2" /> Edit
+                                    details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  {Object.entries(LEAD_STATUS_CONFIG).map(
+                                    ([status, config]) => (
+                                      <DropdownMenuItem
+                                        key={status}
+                                        className="cursor-pointer"
+                                        onClick={() =>
+                                          handleStatusChange(
+                                            lead.id,
+                                            status as LeadStatus
+                                          )
+                                        }
+                                      >
+                                        Mark as {config.label}
+                                      </DropdownMenuItem>
+                                    )
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive cursor-pointer"
+                                    onClick={() =>
+                                      setDeletingLeadId(lead.id)
+                                    }
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </td>
+                          </tr>
+                        );
+                      })}
               </tbody>
             </table>
           </div>
@@ -361,19 +485,27 @@ export default function LeadsPage() {
                 Page {page} of {totalPages}
               </p>
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   disabled={page <= 1}
-                  onClick={() => { setPage(p => p - 1); fetchLeads(searchQuery, activeFilter, page - 1); }}
+                  onClick={() => {
+                    const next = page - 1;
+                    setPage(next);
+                    fetchLeads(searchQuery, activeFilter, next);
+                  }}
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   disabled={page >= totalPages}
-                  onClick={() => { setPage(p => p + 1); fetchLeads(searchQuery, activeFilter, page + 1); }}
+                  onClick={() => {
+                    const next = page + 1;
+                    setPage(next);
+                    fetchLeads(searchQuery, activeFilter, next);
+                  }}
                 >
                   <ChevronRight className="w-4 h-4" />
                 </Button>
@@ -383,105 +515,22 @@ export default function LeadsPage() {
         </CardContent>
       </Card>
 
+      {/* Confirm Delete Dialog */}
+      <LeadDeleteDialog
+        open={!!deletingLeadId}
+        onOpenChange={(open) => !open && setDeletingLeadId(null)}
+        onConfirm={() => deletingLeadId && handleDelete(deletingLeadId)}
+      />
+
       {/* Edit Lead Dialog */}
-      <Dialog open={!!editingLead} onOpenChange={(open) => !open && setEditingLead(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Lead</DialogTitle>
-            <DialogDescription>
-              Update the contact details for this lead.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto py-2">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">Name</Label>
-                <Input 
-                  id="edit-name" 
-                  value={editForm.name} 
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-designation">Designation</Label>
-                <Input 
-                  id="edit-designation" 
-                  value={editForm.designation} 
-                  onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-company">Company</Label>
-              <Input 
-                id="edit-company" 
-                value={editForm.company} 
-                onChange={(e) => setEditForm({ ...editForm, company: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-emails">Emails (comma separated)</Label>
-              <Input 
-                id="edit-emails" 
-                value={editForm.emails} 
-                onChange={(e) => setEditForm({ ...editForm, emails: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-phones">Phones (comma separated)</Label>
-              <Input 
-                id="edit-phones" 
-                value={editForm.phones} 
-                onChange={(e) => setEditForm({ ...editForm, phones: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-websites">Websites (comma separated)</Label>
-              <Input 
-                id="edit-websites" 
-                value={editForm.websites} 
-                onChange={(e) => setEditForm({ ...editForm, websites: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-address">Address</Label>
-              <Input 
-                id="edit-address" 
-                value={editForm.address} 
-                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-status">Status</Label>
-              <select 
-                id="edit-status"
-                value={editForm.status}
-                onChange={(e) => setEditForm({ ...editForm, status: e.target.value as LeadStatus })}
-                className="flex w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                {Object.entries(LEAD_STATUS_CONFIG).map(([status, config]) => (
-                  <option key={status} value={status}>{config.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-notes">Notes</Label>
-              <Textarea 
-                id="edit-notes" 
-                value={editForm.notes} 
-                onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingLead(null)}>Cancel</Button>
-            <Button className="btn-gradient" onClick={handleSaveEdit} disabled={isSaving}>
-              {isSaving ? "Saving..." : "Save Changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <LeadEditDialog
+        open={!!editingLead}
+        onOpenChange={(open) => !open && setEditingLead(null)}
+        editForm={editForm}
+        setEditForm={setEditForm}
+        onSave={handleSaveEdit}
+        isSaving={isSaving}
+      />
     </div>
   );
 }

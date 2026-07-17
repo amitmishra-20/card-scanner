@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useInView } from "@/lib/use-in-view";
+import { cn } from "@/lib/utils";
 
 const logos = [
   "Vertex",
@@ -16,6 +17,8 @@ const logos = [
 ];
 
 export function SocialProof() {
+  const { ref, isInView } = useInView();
+
   return (
     <section className="py-24 bg-background border-y border-border/50 overflow-hidden">
       {/* Logo ticker */}
@@ -43,26 +46,32 @@ export function SocialProof() {
       </div>
 
       {/* Testimonial */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-        className="max-w-3xl mx-auto px-4 sm:px-6 text-center"
+      <div
+        ref={ref}
+        className={cn(
+          "max-w-3xl mx-auto px-4 sm:px-6 text-center animate-fade-in-up",
+          isInView && "visible"
+        )}
       >
         <blockquote className="font-heading text-xl sm:text-2xl md:text-3xl leading-relaxed text-foreground/80 mb-8">
-          &ldquo;We went from a shoebox of business cards to a structured pipeline in a week. The scanning accuracy is genuinely impressive.&rdquo;
+          &ldquo;We went from a shoebox of business cards to a structured
+          pipeline in a week. The scanning accuracy is genuinely
+          impressive.&rdquo;
         </blockquote>
         <div className="flex items-center justify-center gap-4">
           <div className="w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-xs font-bold text-white/60">
             SC
           </div>
           <div className="text-left">
-            <div className="text-sm font-semibold text-foreground">Sarah Chen</div>
-            <div className="text-xs text-muted-foreground">VP Sales, Vertex</div>
+            <div className="text-sm font-semibold text-foreground">
+              Sarah Chen
+            </div>
+            <div className="text-xs text-muted-foreground">
+              VP Sales, Vertex
+            </div>
           </div>
         </div>
-      </motion.div>
+      </div>
     </section>
   );
 }
