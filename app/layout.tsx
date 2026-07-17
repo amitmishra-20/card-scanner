@@ -1,0 +1,66 @@
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono, DM_Serif_Display } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-sans",
+  subsets: ["latin"],
+});
+
+const dmSerif = DM_Serif_Display({
+  variable: "--font-dm-serif",
+  subsets: ["latin"],
+  weight: "400",
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: {
+    default: "CardScan Pro — AI-Powered Business Card Scanner",
+    template: "%s | CardScan Pro",
+  },
+  description:
+    "Turn business cards into actionable leads instantly with AI-powered scanning. Extract contacts, manage leads, and grow your network.",
+  keywords: [
+    "business card scanner",
+    "AI card reader",
+    "lead management",
+    "contact extraction",
+  ],
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
+
+import { Providers } from "@/components/providers";
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${dmSerif.variable} ${geistMono.variable} h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col dark">
+        <Providers>
+          <TooltipProvider>
+            {children}
+          </TooltipProvider>
+          <Toaster richColors position="bottom-right" />
+        </Providers>
+      </body>
+    </html>
+  );
+}
