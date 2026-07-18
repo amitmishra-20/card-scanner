@@ -12,7 +12,7 @@ import {
   getOrCreateSubscription,
   getCurrentUsage,
 } from "@/services/subscription.service";
-import type { ActionResult, UserProfile } from "@/types";
+import type { ActionResult, UserProfile, PlanName } from "@/types";
 
 /**
  * Register a new user with email/password
@@ -45,7 +45,7 @@ export async function registerUser(formData: {
       .catch((error) => {
         if (
           error instanceof Error &&
-          error.message.includes("Unique constraint")
+          (error as { code?: string }).code === "P2002"
         ) {
           return null;
         }
@@ -107,7 +107,7 @@ export async function getUserProfileAction(): Promise<
         name: user.name,
         email: user.email,
         image: user.image,
-        plan: subscription.plan.name as "FREE" | "PRO" | "ENTERPRISE",
+        plan: subscription.plan.name as PlanName,
         scansUsed,
         scanLimit: subscription.plan.scanLimit,
       },

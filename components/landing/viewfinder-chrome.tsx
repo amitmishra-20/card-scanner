@@ -1,6 +1,5 @@
 "use client";
-
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion, useSpring, useMotionValue } from "framer-motion";
 
 export function ViewfinderChrome() {
@@ -88,7 +87,7 @@ export function ViewfinderChrome() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-8 w-px bg-primary/20" />
 
         {/* Top Data Bar */}
-        <div className="absolute top-8 left-1/2 -translate-x-1/2 flex items-center gap-8 text-[10px] font-mono text-primary/80 uppercase tracking-widest">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-8 text-[10px] font-mono text-primary/80 uppercase tracking-widest">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
             {time}
@@ -99,13 +98,6 @@ export function ViewfinderChrome() {
         </div>
 
         {/* Bottom Data Bar */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-1 items-end">
-          <div className="w-1 h-3 bg-primary/80" />
-          <div className="w-1 h-4 bg-primary/80" />
-          <div className="w-1 h-5 bg-primary/80" />
-          <div className="w-1 h-3 bg-primary/40" />
-          <div className="w-1 h-2 bg-primary/40" />
-        </div>
       </div>
 
       {/* Shutter Flash */}

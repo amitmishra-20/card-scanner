@@ -30,9 +30,20 @@ export async function joinWaitlist(
       };
     }
 
-    await db.waitlist.create({
-      data: { email: validated.data },
-    });
+    await db.waitlist
+      .create({
+        data: { email: validated.data },
+      })
+      .catch((error) => {
+        // Handle race condition: unique constraint violation
+        if (
+          error instanceof Error &&
+          (error as { code?: string }).code === "P2002"
+        ) {
+          return null;
+        }
+        throw error;
+      });
 
     return { success: true, data: { message: "Welcome to the waitlist!" } };
   } catch (error) {

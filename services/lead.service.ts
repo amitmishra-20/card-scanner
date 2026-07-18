@@ -5,18 +5,7 @@
 import { db } from "@/lib/db";
 import type { LeadStatus } from "@/types";
 import type { SaveLeadInput, UpdateLeadInput } from "@/lib/validations";
-
-function parseJsonArray(val: unknown): string[] {
-  if (Array.isArray(val)) return val;
-  if (typeof val === "string") {
-    try {
-      return JSON.parse(val);
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
+import { deserializeLead, buildLeadWhere } from "@/lib/helpers";
 
 export async function createLead(userId: string, data: SaveLeadInput) {
   return db.lead.create({
@@ -45,25 +34,9 @@ export async function getLeads(
   }
 ) {
   const page = options?.page ?? 1;
-  const limit = Math.min(options?.limit ?? 20, 100); // cap at 100
+  const limit = Math.min(options?.limit ?? 20, 100);
   const skip = (page - 1) * limit;
-
-  const where: Record<string, unknown> = { userId };
-
-  if (options?.status) {
-    where.status = options.status;
-  }
-
-  if (options?.search) {
-    const search = options.search.slice(0, 200); // cap search length
-    where.OR = [
-      { name: { contains: search } },
-      { company: { contains: search } },
-      { designation: { contains: search } },
-      { emails: { contains: search } },
-      { phones: { contains: search } },
-    ];
-  }
+  const where = buildLeadWhere(userId, options);
 
   const [leads, total] = await Promise.all([
     db.lead.findMany({
@@ -76,12 +49,7 @@ export async function getLeads(
   ]);
 
   return {
-    leads: leads.map((l) => ({
-      ...l,
-      emails: parseJsonArray(l.emails),
-      phones: parseJsonArray(l.phones),
-      websites: parseJsonArray(l.websites),
-    })),
+    leads: leads.map(deserializeLead),
     total,
     page,
     totalPages: Math.ceil(total / limit),
@@ -93,16 +61,10 @@ export async function getLeadById(userId: string, leadId: string) {
     where: { id: leadId, userId },
   });
   if (!lead) return null;
-  return {
-    ...lead,
-    emails: parseJsonArray(lead.emails),
-    phones: parseJsonArray(lead.phones),
-    websites: parseJsonArray(lead.websites),
-  };
+  return deserializeLead(lead);
 }
 
 export async function updateLead(userId: string, data: UpdateLeadInput) {
-  // Atomic: update only if the lead belongs to this user
   const result = await db.lead.updateMany({
     where: { id: data.id, userId },
     data: {
@@ -154,6 +116,8 @@ export async function getDashboardStats(userId: string) {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
 
   const [
     totalLeads,
@@ -183,21 +147,13 @@ export async function getDashboardStats(userId: string) {
       select: { createdAt: true },
       orderBy: { createdAt: "asc" },
     }),
-    (async () => {
-      const month = now.getMonth() + 1;
-      const year = now.getFullYear();
-      const usage = await db.scanUsage.findUnique({
-        where: { userId_month_year: { userId, month, year } },
-      });
-      return usage?.count ?? 0;
-    })(),
-    (async () => {
-      const sub = await db.subscription.findUnique({
-        where: { userId },
-        include: { plan: true },
-      });
-      return sub;
-    })(),
+    db.scanUsage.findUnique({
+      where: { userId_month_year: { userId, month: currentMonth, year: currentYear } },
+    }).then((u) => u?.count ?? 0),
+    db.subscription.findUnique({
+      where: { userId },
+      include: { plan: true },
+    }),
   ]);
 
   const dailyCounts: Record<string, number> = {};
@@ -225,11 +181,6 @@ export async function getDashboardStats(userId: string) {
       date,
       count,
     })),
-    recentLeads: recentLeads.map((l) => ({
-      ...l,
-      emails: parseJsonArray(l.emails),
-      phones: parseJsonArray(l.phones),
-      websites: parseJsonArray(l.websites),
-    })),
+    recentLeads: recentLeads.map(deserializeLead),
   };
 }

@@ -3,6 +3,7 @@
 // ============================================
 
 import { z } from "zod/v4";
+import { LEAD_STATUSES } from "@/types";
 
 const MAX_NAME_LENGTH = 200;
 const MAX_TEXT_LENGTH = 2000;
@@ -26,9 +27,9 @@ export const saveLeadSchema = z.object({
   name: z.string().min(1, "Name is required").max(MAX_NAME_LENGTH).nullable(),
   designation: z.string().max(MAX_NAME_LENGTH).nullable(),
   company: z.string().max(MAX_NAME_LENGTH).nullable(),
-  emails: z.array(z.string().max(254)),
+  emails: z.array(z.string().email().max(254)),
   phones: z.array(z.string().max(50)),
-  websites: z.array(z.string().max(2048)),
+  websites: z.array(z.string().url().max(2048)),
   address: z.string().max(MAX_TEXT_LENGTH).nullable(),
   notes: z.string().max(MAX_NOTES_LENGTH).nullable(),
 });
@@ -38,7 +39,7 @@ export type SaveLeadInput = z.infer<typeof saveLeadSchema>;
 // --- Update Lead ---
 export const updateLeadSchema = saveLeadSchema.extend({
   id: z.string().min(1),
-  status: z.enum(["NEW", "CONTACTED", "QUALIFIED", "LOST", "CONVERTED"]),
+  status: z.enum(LEAD_STATUSES),
 });
 
 export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
@@ -46,7 +47,7 @@ export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
 // --- Update Lead Status ---
 export const updateLeadStatusSchema = z.object({
   id: z.string().min(1),
-  status: z.enum(["NEW", "CONTACTED", "QUALIFIED", "LOST", "CONVERTED"]),
+  status: z.enum(LEAD_STATUSES),
 });
 
 // --- User Profile Update ---

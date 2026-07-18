@@ -11,7 +11,9 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("Page error:", error);
+    if (error.digest) {
+      console.error("Page error digest:", error.digest);
+    }
   }, [error]);
 
   return (

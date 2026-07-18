@@ -9,6 +9,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { signInSchema } from "@/lib/validations";
+import { getOrCreateSubscription } from "@/services/subscription.service";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
@@ -79,34 +80,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // For OAuth: ensure user gets a free plan on first sign-in
       try {
         if (account?.provider !== "credentials" && user?.id) {
-          const existingSub = await db.subscription.findUnique({
-            where: { userId: user.id },
-          });
-
-          if (!existingSub) {
-            const freePlan = await db.plan.findUnique({
-              where: { name: "FREE" },
-            });
-
-            if (freePlan) {
-              const now = new Date();
-              const endOfMonth = new Date(
-                now.getFullYear(),
-                now.getMonth() + 1,
-                0
-              );
-
-              await db.subscription.create({
-                data: {
-                  userId: user.id,
-                  planId: freePlan.id,
-                  status: "ACTIVE",
-                  currentPeriodStart: now,
-                  currentPeriodEnd: endOfMonth,
-                },
-              });
-            }
-          }
+          await getOrCreateSubscription(user.id);
         }
       } catch (error) {
         console.error(

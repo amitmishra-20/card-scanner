@@ -10,6 +10,8 @@ import {
   Save,
   ScanLine,
   X,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,7 @@ export default function ScanPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [cardData, setCardData] = useState<ExtractedCardData | null>(null);
   const [parseFailed, setParseFailed] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [notes, setNotes] = useState("");
 
@@ -141,6 +144,7 @@ export default function ScanPage() {
     setCardData(null);
     setNotes("");
     setParseFailed(false);
+    setSaved(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -154,9 +158,9 @@ export default function ScanPage() {
         name: cardData.name,
         designation: cardData.designation,
         company: cardData.company,
-        emails: cardData.emails,
-        phones: cardData.phones,
-        websites: cardData.websites,
+        emails: cardData.emails.filter(Boolean),
+        phones: cardData.phones.filter(Boolean),
+        websites: cardData.websites.filter(Boolean),
         address: cardData.address,
         notes: notes || null,
       });
@@ -167,6 +171,7 @@ export default function ScanPage() {
       }
 
       toast.success("Lead saved successfully!");
+      setSaved(true);
       router.push("/leads");
     } catch {
       toast.error("Failed to save lead");
@@ -201,13 +206,13 @@ export default function ScanPage() {
       {/* Progress Stepper */}
       <div className="flex items-center justify-center gap-0">
         {[
-          { label: "Upload", active: !imagePreview && !isScanning && !cardData },
+          { label: "Upload", active: !imagePreview && !isScanning && !cardData && !saved },
           { label: "Scanning", active: isScanning },
           {
             label: "Review",
-            active: !!cardData && !isScanning && !isSaving,
+            active: !!cardData && !isScanning && !isSaving && !saved,
           },
-          { label: "Save", active: isSaving },
+          { label: "Save", active: isSaving || saved },
         ].map((step, i) => (
           <div key={step.label} className="flex items-center">
             <div className="flex items-center gap-2">
@@ -215,11 +220,10 @@ export default function ScanPage() {
                 className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors duration-300 ${
                   step.active
                     ? "bg-primary text-primary-foreground"
-                    : step.active ||
-                        (!isScanning && !cardData && !isSaving && i === 0) ||
+                    : (!isScanning && !cardData && !isSaving && !saved && i === 0) ||
                         (isScanning && i <= 1) ||
-                        (cardData && !isSaving && i <= 2) ||
-                        (isSaving && i <= 3)
+                        (cardData && !isSaving && !saved && i <= 2) ||
+                        ((isSaving || saved) && i <= 3)
                       ? "bg-primary/20 text-primary"
                       : "bg-muted text-muted-foreground"
                 }`}
@@ -238,8 +242,8 @@ export default function ScanPage() {
               <div
                 className={`w-8 sm:w-12 h-px mx-2 transition-colors duration-300 ${
                   (isScanning && i === 0) ||
-                  (cardData && !isSaving && i <= 1) ||
-                  (isSaving && i <= 2)
+                  (cardData && !isSaving && !saved && i <= 1) ||
+                  ((isSaving || saved) && i <= 2)
                     ? "bg-primary"
                     : "bg-border"
                 }`}
@@ -424,69 +428,180 @@ export default function ScanPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <Label htmlFor="email">Emails (comma separated)</Label>
-                    <Input
-                      id="email"
-                      value={cardData?.emails.join(", ") || ""}
-                      onChange={(e) =>
+                  <div className="space-y-2">
+                    <Label>Emails</Label>
+                    {(cardData?.emails.length ? cardData.emails : [""]).map(
+                      (_, i) => (
+                        <div key={i} className="flex gap-2">
+                          <Input
+                            value={cardData?.emails[i] || ""}
+                            onChange={(e) =>
+                              setCardData((prev) => {
+                                if (!prev) return null;
+                                const emails = [...prev.emails];
+                                emails[i] = e.target.value;
+                                return { ...prev, emails };
+                              })
+                            }
+                            placeholder="email@example.com"
+                            className="bg-background/50"
+                          />
+                          {cardData && cardData.emails.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="shrink-0 text-destructive hover:text-destructive"
+                              onClick={() =>
+                                setCardData((prev) => {
+                                  if (!prev) return null;
+                                  return {
+                                    ...prev,
+                                    emails: prev.emails.filter((_, j) => j !== i),
+                                  };
+                                })
+                              }
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-1"
+                      onClick={() =>
                         setCardData((prev) =>
                           prev
-                            ? {
-                                ...prev,
-                                emails: e.target.value
-                                  .split(",")
-                                  .map((s) => s.trim())
-                                  .filter(Boolean),
-                              }
+                            ? { ...prev, emails: [...prev.emails, ""] }
                             : null
                         )
                       }
-                      className="bg-background/50"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="phone">Phones (comma separated)</Label>
-                    <Input
-                      id="phone"
-                      value={cardData?.phones.join(", ") || ""}
-                      onChange={(e) =>
-                        setCardData((prev) =>
-                          prev
-                            ? {
-                                ...prev,
-                                phones: e.target.value
-                                  .split(",")
-                                  .map((s) => s.trim())
-                                  .filter(Boolean),
-                              }
-                            : null
-                        )
-                      }
-                      className="bg-background/50"
-                    />
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1" />
+                      Add email
+                    </Button>
                   </div>
 
-                  <div className="space-y-1">
-                    <Label htmlFor="website">Websites (comma separated)</Label>
-                    <Input
-                      id="website"
-                      value={cardData?.websites.join(", ") || ""}
-                      onChange={(e) =>
+                  <div className="space-y-2">
+                    <Label>Phones</Label>
+                    {(cardData?.phones.length ? cardData.phones : [""]).map(
+                      (_, i) => (
+                        <div key={i} className="flex gap-2">
+                          <Input
+                            value={cardData?.phones[i] || ""}
+                            onChange={(e) =>
+                              setCardData((prev) => {
+                                if (!prev) return null;
+                                const phones = [...prev.phones];
+                                phones[i] = e.target.value;
+                                return { ...prev, phones };
+                              })
+                            }
+                            placeholder="+1-234-567-8900"
+                            className="bg-background/50"
+                          />
+                          {cardData && cardData.phones.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="shrink-0 text-destructive hover:text-destructive"
+                              onClick={() =>
+                                setCardData((prev) => {
+                                  if (!prev) return null;
+                                  return {
+                                    ...prev,
+                                    phones: prev.phones.filter((_, j) => j !== i),
+                                  };
+                                })
+                              }
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-1"
+                      onClick={() =>
                         setCardData((prev) =>
                           prev
-                            ? {
-                                ...prev,
-                                websites: e.target.value
-                                  .split(",")
-                                  .map((s) => s.trim())
-                                  .filter(Boolean),
-                              }
+                            ? { ...prev, phones: [...prev.phones, ""] }
                             : null
                         )
                       }
-                      className="bg-background/50"
-                    />
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1" />
+                      Add phone
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Websites</Label>
+                    {(cardData?.websites.length ? cardData.websites : [""]).map(
+                      (_, i) => (
+                        <div key={i} className="flex gap-2">
+                          <Input
+                            value={cardData?.websites[i] || ""}
+                            onChange={(e) =>
+                              setCardData((prev) => {
+                                if (!prev) return null;
+                                const websites = [...prev.websites];
+                                websites[i] = e.target.value;
+                                return { ...prev, websites };
+                              })
+                            }
+                            placeholder="https://example.com"
+                            className="bg-background/50"
+                          />
+                          {cardData && cardData.websites.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="shrink-0 text-destructive hover:text-destructive"
+                              onClick={() =>
+                                setCardData((prev) => {
+                                  if (!prev) return null;
+                                  return {
+                                    ...prev,
+                                    websites: prev.websites.filter(
+                                      (_, j) => j !== i
+                                    ),
+                                  };
+                                })
+                              }
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-1"
+                      onClick={() =>
+                        setCardData((prev) =>
+                          prev
+                            ? { ...prev, websites: [...prev.websites, ""] }
+                            : null
+                        )
+                      }
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1" />
+                      Add website
+                    </Button>
                   </div>
 
                   <div className="space-y-1">

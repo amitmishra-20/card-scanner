@@ -5,13 +5,13 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/services/scan.service", () => ({
-  extractCard: vi.fn(),
+  extractCardFromImage: vi.fn(),
   reserveScanSlot: vi.fn(),
   checkScanQuota: vi.fn(),
 }));
 
 import { auth } from "@/lib/auth";
-import { extractCard, reserveScanSlot, checkScanQuota } from "@/services/scan.service";
+import { extractCardFromImage, reserveScanSlot, checkScanQuota } from "@/services/scan.service";
 
 // We need to import the action after mocks are set up
 const getExtractCardData = async () => {
@@ -77,7 +77,7 @@ describe("extractCardData", () => {
       limit: 5,
       planName: "FREE",
     });
-    vi.mocked(extractCard).mockResolvedValue({
+    vi.mocked(extractCardFromImage).mockResolvedValue({
       data: {
         name: "John Doe",
         designation: "CEO",
@@ -107,7 +107,7 @@ describe("extractCardData", () => {
       limit: 5,
       planName: "FREE",
     });
-    vi.mocked(extractCard).mockResolvedValue({
+    vi.mocked(extractCardFromImage).mockResolvedValue({
       data: {
         name: null,
         designation: null,

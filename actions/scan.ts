@@ -5,12 +5,12 @@
 "use server";
 
 import { auth } from "@/lib/auth";
-import { extractCard, reserveScanSlot } from "@/services/scan.service";
+import { extractCardFromImage, reserveScanSlot, checkScanQuota } from "@/services/scan.service";
 import { z } from "zod/v4";
 import type { ActionResult, ExtractedCardData } from "@/types";
+import { ALLOWED_MIME_TYPES } from "@/constants";
 
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
-const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const extractCardSchema = z.object({
   base64Image: z.string().min(1, "Image data is required"),
@@ -55,7 +55,7 @@ export async function extractCardData(
       };
     }
 
-    const result = await extractCard(validated.data.base64Image, validated.data.mimeType);
+    const result = await extractCardFromImage(validated.data.base64Image, validated.data.mimeType);
 
     return { success: true, data: { cardData: result.data, parseFailed: result.parseFailed } };
   } catch (error) {
@@ -79,7 +79,6 @@ export async function getScanQuota(): Promise<
       return { success: false, error: "Not authenticated" };
     }
 
-    const { checkScanQuota } = await import("@/services/scan.service");
     const quota = await checkScanQuota(session.user.id);
     return {
       success: true,

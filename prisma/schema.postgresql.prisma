@@ -1,13 +1,16 @@
 // ============================================
-// CardScan Pro — Prisma Schema
+// CardScan Pro — Prisma Schema (PostgreSQL — Production)
 // ============================================
+// This schema is used on Vercel (production).
+// Local development uses schema.prisma (SQLite).
+// The vercel.json buildCommand swaps this file in before prisma generate.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

@@ -6,9 +6,9 @@ import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { Menu, X, ScanLine } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import { APP_NAV_ITEMS } from "@/constants";
 
 const UserMenu = dynamic(
@@ -58,18 +58,26 @@ export function Topbar() {
 
         <div className="flex items-center gap-3">
           {/* Quick Scan Button - visible on mobile as icon */}
-          <Link href="/scan" className="sm:hidden">
-            <Button variant="ghost" size="icon" className="h-9 w-9">
-              <ScanLine className="h-5 w-5 text-primary" />
-            </Button>
+          <Link
+            href="/scan"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "icon" }),
+              "sm:hidden h-9 w-9"
+            )}
+          >
+            <ScanLine className="h-5 w-5 text-primary" />
           </Link>
 
-          <Button size="sm" className="btn-gradient hidden sm:inline-flex">
-            <Link href="/scan" className="flex items-center">
-              <ScanLine className="w-4 h-4 mr-2" />
-              New Scan
-            </Link>
-          </Button>
+          <Link
+            href="/scan"
+            className={cn(
+              buttonVariants({ size: "sm" }),
+              "btn-gradient hidden sm:inline-flex"
+            )}
+          >
+            <ScanLine className="w-4 h-4 mr-2" />
+            New Scan
+          </Link>
 
           {/* User Menu */}
           {status === "loading" ? (

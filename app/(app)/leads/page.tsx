@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
   Users,
   Search,
-  MoreVertical,
   Mail,
   Phone,
   Building,
   Trash2,
-  Edit,
+  Pencil,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -19,16 +19,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import {
   getLeads,
   deleteLeadAction,
-  updateLeadStatusAction,
   updateLead,
 } from "@/actions/leads";
 import { LEAD_STATUS_CONFIG } from "@/constants";
@@ -55,11 +47,10 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<LeadStatus | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Edit dialog state
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [editForm, setEditForm] = useState({
     name: "",
@@ -73,12 +64,10 @@ export default function LeadsPage() {
     status: "NEW" as LeadStatus,
   });
   const [isSaving, setIsSaving] = useState(false);
-
-  // Confirm delete dialog
   const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null);
 
   const fetchLeads = useCallback(
-    async (search = "", status?: string | null, p = 1) => {
+    async (search = "", status?: LeadStatus | null, p = 1) => {
       setIsLoading(true);
       try {
         const res = await getLeads({
@@ -101,11 +90,9 @@ export default function LeadsPage() {
     []
   );
 
-  const handleInitialLoad = useRef(true);
-  if (handleInitialLoad.current) {
-    handleInitialLoad.current = false;
+  useEffect(() => {
     fetchLeads();
-  }
+  }, [fetchLeads]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,7 +100,7 @@ export default function LeadsPage() {
     fetchLeads(searchQuery, activeFilter, 1);
   };
 
-  const handleFilter = (status: string | null) => {
+  const handleFilter = (status: LeadStatus | null) => {
     setActiveFilter(status);
     setPage(1);
     fetchLeads(searchQuery, status, 1);
@@ -125,33 +112,12 @@ export default function LeadsPage() {
       const res = await deleteLeadAction(id);
       if (res.success) {
         toast.success("Lead deleted");
-        setLeads(leads.filter((l) => l.id !== id));
+        setLeads((prev) => prev.filter((l) => l.id !== id));
       } else {
         toast.error(res.error || "Failed to delete lead");
       }
     } catch {
       toast.error("Failed to delete lead");
-    }
-  };
-
-  const handleStatusChange = async (leadId: string, status: LeadStatus) => {
-    // Optimistic update
-    const previousLeads = leads;
-    setLeads((prev) =>
-      prev.map((l) => (l.id === leadId ? { ...l, status } : l))
-    );
-
-    try {
-      const res = await updateLeadStatusAction(leadId, status);
-      if (res.success) {
-        toast.success(`Status updated to ${LEAD_STATUS_CONFIG[status].label}`);
-      } else {
-        setLeads(previousLeads); // revert
-        toast.error(res.error || "Failed to update status");
-      }
-    } catch {
-      setLeads(previousLeads); // revert
-      toast.error("Failed to update status");
     }
   };
 
@@ -245,7 +211,7 @@ export default function LeadsPage() {
     a.href = url;
     a.download = `leads-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
     toast.success("CSV exported");
   };
 
@@ -295,7 +261,7 @@ export default function LeadsPage() {
                 key={status}
                 variant="outline"
                 size="sm"
-                onClick={() => handleFilter(status)}
+                onClick={() => handleFilter(status as LeadStatus)}
                 className={`shrink-0 ${activeFilter === status ? "bg-primary text-primary-foreground" : "bg-background"}`}
               >
                 {config.label}
@@ -363,7 +329,10 @@ export default function LeadsPage() {
                             className="hover:bg-muted/20 transition-colors group"
                           >
                             <td className="px-6 py-4 min-w-0">
-                              <div className="flex items-center gap-3">
+                              <Link
+                                href={`/leads/${lead.id}`}
+                                className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                              >
                                 <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium shrink-0">
                                   {lead.name?.charAt(0).toUpperCase() || "?"}
                                 </div>
@@ -375,7 +344,7 @@ export default function LeadsPage() {
                                     {lead.designation || "No title"}
                                   </div>
                                 </div>
-                              </div>
+                              </Link>
                             </td>
                             <td className="px-6 py-4 hidden md:table-cell">
                               <div className="flex items-center gap-2 text-muted-foreground">
@@ -424,52 +393,26 @@ export default function LeadsPage() {
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger>
-                                  <Button
-                                    variant="ghost"
-                                    className="h-8 w-8 p-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-                                  >
-                                    <span className="sr-only">Open menu</span>
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    className="cursor-pointer"
-                                    onClick={() => openEditDialog(lead)}
-                                  >
-                                    <Edit className="w-4 h-4 mr-2" /> Edit
-                                    details
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  {Object.entries(LEAD_STATUS_CONFIG).map(
-                                    ([status, config]) => (
-                                      <DropdownMenuItem
-                                        key={status}
-                                        className="cursor-pointer"
-                                        onClick={() =>
-                                          handleStatusChange(
-                                            lead.id,
-                                            status as LeadStatus
-                                          )
-                                        }
-                                      >
-                                        Mark as {config.label}
-                                      </DropdownMenuItem>
-                                    )
-                                  )}
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive cursor-pointer"
-                                    onClick={() =>
-                                      setDeletingLeadId(lead.id)
-                                    }
-                                  >
-                                    <Trash2 className="w-4 h-4 mr-2" /> Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                  onClick={() => openEditDialog(lead)}
+                                  aria-label={`Edit ${lead.name || "lead"}`}
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                  onClick={() =>
+                                    setDeletingLeadId(lead.id)
+                                  }
+                                  aria-label={`Delete ${lead.name || "lead"}`}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -478,7 +421,6 @@ export default function LeadsPage() {
             </table>
           </div>
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-6 py-4 border-t border-border/50">
               <p className="text-sm text-muted-foreground">
@@ -515,14 +457,12 @@ export default function LeadsPage() {
         </CardContent>
       </Card>
 
-      {/* Confirm Delete Dialog */}
       <LeadDeleteDialog
         open={!!deletingLeadId}
         onOpenChange={(open) => !open && setDeletingLeadId(null)}
         onConfirm={() => deletingLeadId && handleDelete(deletingLeadId)}
       />
 
-      {/* Edit Lead Dialog */}
       <LeadEditDialog
         open={!!editingLead}
         onOpenChange={(open) => !open && setEditingLead(null)}

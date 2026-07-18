@@ -3,25 +3,24 @@
 // ============================================
 
 import { db } from "@/lib/db";
-import { extractCardFromImage } from "@/lib/gemini";
-import type { ExtractedCardData } from "@/types";
+import { extractCardFromImage } from "@/lib/ai-providers";
 
-/**
- * Extract card data using Gemini AI.
- * Returns both data and whether parsing failed so callers can distinguish
- * an empty card from a failed extraction.
- */
-export async function extractCard(
-  base64Image: string,
-  mimeType: string = "image/jpeg"
-): Promise<{ data: ExtractedCardData; parseFailed: boolean }> {
-  return extractCardFromImage(base64Image, mimeType);
+export { extractCardFromImage };
+
+async function getScanLimits(userId: string) {
+  const subscription = await db.subscription.findUnique({
+    where: { userId },
+    include: { plan: true },
+  });
+  return {
+    scanLimit: subscription?.plan.scanLimit ?? 5,
+    planName: subscription?.plan.name ?? "FREE",
+  };
 }
 
 /**
  * Atomically reserve a scan quota slot.
  * Uses an upsert + increment pattern to prevent TOCTOU race conditions.
- * Returns the updated count and whether the scan is allowed.
  */
 export async function reserveScanSlot(userId: string): Promise<{
   allowed: boolean;
@@ -33,19 +32,12 @@ export async function reserveScanSlot(userId: string): Promise<{
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
 
-  const subscription = await db.subscription.findUnique({
-    where: { userId },
-    include: { plan: true },
-  });
-
-  const scanLimit = subscription?.plan.scanLimit ?? 5;
-  const planName = subscription?.plan.name ?? "FREE";
+  const { scanLimit, planName } = await getScanLimits(userId);
 
   if (scanLimit === -1) {
     return { allowed: true, used: 0, limit: -1, planName };
   }
 
-  // Upsert the usage record first (creates if missing)
   const usage = await db.scanUsage.upsert({
     where: {
       userId_month_year: { userId, month: currentMonth, year: currentYear },
@@ -56,7 +48,6 @@ export async function reserveScanSlot(userId: string): Promise<{
 
   const newCount = usage.count;
 
-  // If we just went over the limit, decrement back and deny
   if (newCount > scanLimit) {
     await db.scanUsage.update({
       where: {
@@ -83,13 +74,7 @@ export async function checkScanQuota(userId: string): Promise<{
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
 
-  const subscription = await db.subscription.findUnique({
-    where: { userId },
-    include: { plan: true },
-  });
-
-  const scanLimit = subscription?.plan.scanLimit ?? 5;
-  const planName = subscription?.plan.name ?? "FREE";
+  const { scanLimit, planName } = await getScanLimits(userId);
 
   if (scanLimit === -1) {
     return { allowed: true, used: 0, limit: -1, planName };

@@ -55,7 +55,7 @@ export async function getOrCreateSubscription(userId: string) {
     // If unique constraint violated (race condition), retry the read
     if (
       error instanceof Error &&
-      error.message.includes("Unique constraint")
+      (error as { code?: string }).code === "P2002"
     ) {
       const subscription = await db.subscription.findUnique({
         where: { userId },

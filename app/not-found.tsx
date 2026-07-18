@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function NotFound() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px] text-center px-4">
@@ -6,12 +8,12 @@ export default function NotFound() {
       <p className="text-muted-foreground mb-6 max-w-md">
         The page you&apos;re looking for doesn&apos;t exist or has been moved.
       </p>
-      <a
+      <Link
         href="/dashboard"
         className="inline-flex items-center justify-center px-6 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity"
       >
         Go to Dashboard
-      </a>
+      </Link>
     </div>
   );
 }

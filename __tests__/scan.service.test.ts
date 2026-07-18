@@ -12,7 +12,7 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-vi.mock("@/lib/gemini", () => ({
+vi.mock("@/lib/ai-providers", () => ({
   extractCardFromImage: vi.fn(),
 }));
 

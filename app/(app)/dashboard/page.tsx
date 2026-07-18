@@ -11,11 +11,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getDashboardData } from "@/actions/leads";
 import type { DashboardStats, LeadStatus } from "@/types";
 import { LEAD_STATUS_CONFIG } from "@/constants";
+import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 
 const DashboardChart = dynamic(
@@ -146,98 +147,25 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="relative z-10">
-            <Button className="w-full btn-gradient shadow-lg">
-              <Link href="/scan" className="flex items-center">
-                <ScanLine className="w-4 h-4 mr-2" />
-                Start Scanner
-              </Link>
-            </Button>
+            <Link href="/scan" className={cn(buttonVariants({ className: "w-full btn-gradient shadow-lg" }))}>
+              <ScanLine className="w-4 h-4 mr-2" />
+              Start Scanner
+            </Link>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-        {/* Leads Over Time Chart */}
-        <Card className="glass">
-          <CardHeader>
-            <CardTitle>Leads Over Time</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {stats?.leadsOverTime?.length ? (
-              <DashboardChart data={stats.leadsOverTime} />
-            ) : (
-              <div className="flex items-center justify-center h-[250px] text-muted-foreground">
-                <p className="text-sm">
-                  No data yet. Scan some cards to see trends.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Leads by Status */}
-        <Card className="glass">
-          <CardHeader>
-            <CardTitle>Pipeline Breakdown</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {stats?.leadsByStatus?.length ? (
-                stats.leadsByStatus.map((item) => {
-                  const config =
-                    LEAD_STATUS_CONFIG[item.status as LeadStatus];
-                  const percentage = Math.round(
-                    (item.count / (stats.totalLeads || 1)) * 100
-                  );
-
-                  return (
-                    <div key={item.status} className="flex items-center gap-4">
-                      <div
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: config.color }}
-                      />
-                      <div className="flex-1 flex justify-between items-center text-sm">
-                        <span className="font-medium text-muted-foreground">
-                          {config.label}
-                        </span>
-                        <span className="font-mono text-foreground">
-                          {item.count} ({percentage}%)
-                        </span>
-                      </div>
-                      <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-1000"
-                          style={{
-                            backgroundColor: config.color,
-                            width: `${percentage}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p className="text-sm">No leads in pipeline yet.</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Recent Leads */}
         <Card className="glass flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <CardTitle>Recent Leads</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-primary hover:text-primary/80"
+            <Link
+              href="/leads"
+              className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "text-primary hover:text-primary/80")}
             >
-              <Link href="/leads" className="flex items-center">
-                View All <ArrowRight className="w-4 h-4 ml-2" />
-              </Link>
-            </Button>
+              View All <ArrowRight className="w-4 h-4 ml-2" />
+            </Link>
           </CardHeader>
           <CardContent className="flex-1">
             <div className="space-y-6">
@@ -292,7 +220,75 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Leads by Status */}
+        <Card className="glass">
+          <CardHeader>
+            <CardTitle>Pipeline Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {stats?.leadsByStatus?.length ? (
+                stats.leadsByStatus.map((item) => {
+                  const config =
+                    LEAD_STATUS_CONFIG[item.status as LeadStatus];
+                  const percentage = Math.round(
+                    (item.count / (stats.totalLeads || 1)) * 100
+                  );
+
+                  return (
+                    <div key={item.status} className="flex items-center gap-4">
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: config.color }}
+                      />
+                      <div className="flex-1 flex justify-between items-center text-sm">
+                        <span className="font-medium text-muted-foreground">
+                          {config.label}
+                        </span>
+                        <span className="font-mono text-foreground">
+                          {item.count} ({percentage}%)
+                        </span>
+                      </div>
+                      <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-1000"
+                          style={{
+                            backgroundColor: config.color,
+                            width: `${percentage}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-sm">No leads in pipeline yet.</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Leads Over Time Chart — full width */}
+      <Card className="glass">
+        <CardHeader>
+          <CardTitle>Leads Over Time</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stats?.leadsOverTime?.length ? (
+            <DashboardChart data={stats.leadsOverTime} />
+          ) : (
+            <div className="flex items-center justify-center h-[250px] text-muted-foreground">
+              <p className="text-sm">
+                No data yet. Scan some cards to see trends.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

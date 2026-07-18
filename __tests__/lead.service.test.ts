@@ -9,6 +9,38 @@ import {
   getDashboardStats,
 } from "@/services/lead.service";
 
+function parseJsonArray(val: unknown): string[] {
+  if (Array.isArray(val)) return val;
+  if (typeof val === "string") {
+    try { return JSON.parse(val); } catch { return []; }
+  }
+  return [];
+}
+
+vi.mock("@/lib/helpers", () => ({
+  deserializeLead: (l: { emails: string; phones: string; websites: string; [k: string]: unknown }) => ({
+    ...l,
+    emails: parseJsonArray(l.emails),
+    phones: parseJsonArray(l.phones),
+    websites: parseJsonArray(l.websites),
+  }),
+  buildLeadWhere: (_userId: string, options?: { status?: string; search?: string }) => {
+    const where: Record<string, unknown> = { userId: _userId };
+    if (options?.status) where.status = options.status;
+    if (options?.search) {
+      const s = options.search.slice(0, 200);
+      where.OR = [
+        { name: { contains: s } },
+        { company: { contains: s } },
+        { designation: { contains: s } },
+        { emails: { contains: s } },
+        { phones: { contains: s } },
+      ];
+    }
+    return where;
+  },
+}));
+
 vi.mock("@/lib/db", () => ({
   db: {
     lead: {

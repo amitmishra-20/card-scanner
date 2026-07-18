@@ -76,7 +76,7 @@ export const LEAD_STATUS_CONFIG: Record<
   },
 };
 
-// --- Gemini Prompt ---
+// --- AI Prompt ---
 export const CARD_EXTRACTION_PROMPT = `You are a business card data extractor. Analyze the business card image and extract ALL visible contact information.
 
 Return ONLY valid JSON in this exact format (no markdown, no code fences):
@@ -99,7 +99,6 @@ Rules:
 
 // --- App Metadata ---
 export const APP_NAME = "CardScan Pro";
-export const APP_DESCRIPTION =
-  "AI-powered business card scanner. Turn business cards into actionable leads instantly.";
-export const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+// --- AI MIME Types ---
+export const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
