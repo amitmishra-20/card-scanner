@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "cp prisma/schema.postgresql.prisma prisma/schema.prisma && pnpm prisma generate && pnpm prisma db seed && pnpm build",
+  "buildCommand": "cp prisma/schema.postgresql.prisma prisma/schema.prisma && pnpm prisma generate && pnpm build",
   "outputDirectory": ".next",
   "regions": ["iad1"]
 }
