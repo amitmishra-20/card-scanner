@@ -42,7 +42,7 @@ export async function registerUser(formData: {
           password: hashedPassword,
         },
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         if (
           error instanceof Error &&
           (error as { code?: string }).code === "P2002"
