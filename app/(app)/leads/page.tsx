@@ -252,7 +252,7 @@ export default function LeadsPage() {
               variant="outline"
               size="sm"
               onClick={() => handleFilter(null)}
-              className={`shrink-0 ${activeFilter === null ? "bg-primary text-primary-foreground" : "bg-background"}`}
+              className={`shrink-0 ${activeFilter === null ? "bg-primary text-primary-foreground" : "bg-background text-primary-foreground"}`}
             >
               All
             </Button>
@@ -262,7 +262,7 @@ export default function LeadsPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => handleFilter(status as LeadStatus)}
-                className={`shrink-0 ${activeFilter === status ? "bg-primary text-primary-foreground" : "bg-background"}`}
+                className={`shrink-0 ${activeFilter === status ? "bg-primary text-primary-foreground" : "bg-background text-primary-foreground"}`}
               >
                 {config.label}
               </Button>
