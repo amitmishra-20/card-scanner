@@ -293,7 +293,6 @@ export default function DashboardPage() {
   );
 }
 
-
 function DashboardSkeleton() {
   return (
     <div className="space-y-8">
