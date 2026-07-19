@@ -34,7 +34,7 @@ export async function joinWaitlist(
       .create({
         data: { email: validated.data },
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         // Handle race condition: unique constraint violation
         if (
           error instanceof Error &&
