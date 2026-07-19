@@ -110,6 +110,11 @@ const EMPTY_RESULT: ExtractedCardData = {
   address: null,
 };
 
+function normalizeWebsite(url: string): string {
+  if (/^https?:\/\//i.test(url)) return url;
+  return `https://${url}`;
+}
+
 function cleanJsonResponse(text: string): string {
   return text
     .replace(/```json\n?/g, "")
@@ -152,7 +157,7 @@ async function callProvider(
         },
       ],
       temperature: 0.1,
-      max_tokens: 2048,
+      max_tokens: 4096,
     }),
     AI_TIMEOUT_MS
   );
@@ -171,7 +176,12 @@ async function callProvider(
   const cleanJson = cleanJsonResponse(text);
 
   try {
-    const parsed = JSON.parse(cleanJson);
+    const parsed = JSON.parse(cleanJson) as Record<string, unknown>;
+    if (Array.isArray(parsed.websites)) {
+      parsed.websites = parsed.websites.map((w: unknown) =>
+        typeof w === "string" ? normalizeWebsite(w) : w
+      );
+    }
     const validated = cardDataSchema.parse(parsed);
     return { data: validated, parseFailed: false };
   } catch {

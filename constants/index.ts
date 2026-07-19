@@ -94,6 +94,7 @@ Rules:
 - If a field is not found, use null for strings and [] for arrays
 - Phone numbers should include country code if visible
 - Include ALL emails, phones, and websites found (as arrays)
+- Return websites exactly as printed on the card (e.g. "www.example.com", not "https://www.example.com")
 - Do not guess or fabricate information
 - Return ONLY the JSON object, nothing else`;
 
