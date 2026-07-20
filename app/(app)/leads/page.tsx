@@ -249,20 +249,20 @@ export default function LeadsPage() {
 
           <div className="flex gap-2 w-full overflow-x-auto pb-1 hide-scrollbar">
             <Button
+              className={`shrink-0 ${activeFilter === null ? "dark:border-accent" : "dark:border-border"}`}
               variant="outline"
               size="sm"
               onClick={() => handleFilter(null)}
-              className={`shrink-0 ${activeFilter === null ? "bg-primary text-primary-foreground" : "bg-background text-primary-foreground"}`}
             >
               All
             </Button>
             {Object.entries(LEAD_STATUS_CONFIG).map(([status, config]) => (
               <Button
+                className={`shrink-0 ${activeFilter === status ? "dark:border-accent" : "dark:border-border"}`}
                 key={status}
                 variant="outline"
                 size="sm"
                 onClick={() => handleFilter(status as LeadStatus)}
-                className={`shrink-0 ${activeFilter === status ? "bg-primary text-primary-foreground" : "bg-background text-primary-foreground"}`}
               >
                 {config.label}
               </Button>

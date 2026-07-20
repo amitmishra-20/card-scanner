@@ -30,7 +30,9 @@ const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export default function ScanPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -38,6 +40,8 @@ export default function ScanPage() {
   const [parseFailed, setParseFailed] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
@@ -45,6 +49,63 @@ export default function ScanPage() {
       "ontouchstart" in window || navigator.maxTouchPoints > 0
     );
   }, []);
+
+  const openCamera = async () => {
+    setCameraError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
+      });
+      streamRef.current = stream;
+      setCameraOpen(true);
+    } catch {
+      setCameraError("Camera access denied. Please allow camera permission or use file upload instead.");
+    }
+  };
+
+  useEffect(() => {
+    if (cameraOpen && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [cameraOpen]);
+
+  const closeCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    setCameraOpen(false);
+  };
+
+  const capturePhoto = async () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0);
+    closeCamera();
+
+    try {
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (b) => (b ? resolve(b) : reject(new Error("Failed to capture photo"))),
+          "image/jpeg",
+          0.92
+        );
+      });
+      const file = new File([blob], "camera-capture.jpg", { type: "image/jpeg" });
+      const base64 = await compressImage(file);
+      setImagePreview(base64);
+      await processImage(base64, "image/jpeg");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to capture photo");
+    }
+  };
 
   const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -140,6 +201,7 @@ export default function ScanPage() {
   };
 
   const resetScan = () => {
+    closeCamera();
     setImagePreview(null);
     setCardData(null);
     setNotes("");
@@ -292,25 +354,20 @@ export default function ScanPage() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        cameraInputRef.current?.click();
+                        openCamera();
                       }}
                     >
                       <Camera className="w-4 h-4 mr-2" /> Take Photo
                     </Button>
                   </div>
+                  {cameraError && (
+                    <p className="text-sm text-destructive mt-2 px-4 text-center">{cameraError}</p>
+                  )}
                   <input
                     type="file"
                     ref={fileInputRef}
                     className="hidden"
                     accept="image/jpeg, image/png, image/webp"
-                    onChange={handleFileChange}
-                  />
-                  <input
-                    type="file"
-                    ref={cameraInputRef}
-                    className="hidden"
-                    accept="image/jpeg, image/png, image/webp"
-                    capture="environment"
                     onChange={handleFileChange}
                   />
                 </div>
@@ -656,6 +713,39 @@ export default function ScanPage() {
           </Card>
         </div>
       </div>
+
+      {/* Camera Overlay */}
+      {cameraOpen && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+          <div className="flex items-center justify-between p-4">
+            <p className="text-white font-medium">Position card within frame</p>
+            <Button variant="ghost" size="icon" onClick={closeCamera} className="text-white hover:text-white/80">
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+          <div className="flex-1 relative overflow-hidden">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-[85%] max-w-md aspect-[1.6/1] border-2 border-white/40 rounded-xl" />
+            </div>
+          </div>
+          <div className="flex justify-center py-8">
+            <button
+              onClick={capturePhoto}
+              className="w-16 h-16 rounded-full bg-white border-4 border-white/50 active:scale-90 transition-transform"
+              aria-label="Capture photo"
+            />
+          </div>
+        </div>
+      )}
+
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }

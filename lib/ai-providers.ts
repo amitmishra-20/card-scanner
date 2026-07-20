@@ -35,7 +35,8 @@ function buildProviders(): AIProvider[] {
           "X-Title": "CardScan Pro",
         },
       }),
-      model: "meta-llama/llama-4-scout",
+      model:'openrouter/free',
+      // model: "meta-llama/llama-4-scout",
       available: true,
     });
   }

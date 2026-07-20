@@ -37,8 +37,8 @@ export function MarketingNavbar() {
         animate={{ y: 0 }}
         transition={{ type: "spring", stiffness: 100, damping: 20 }}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          scrolled
-            ? "glass-strong shadow-lg shadow-black/10"
+          scrolled || mobileOpen
+            ? "backdrop-blur-xl shadow-lg shadow-black/10 border-white/10 bg-white/[0.06]"
             : "bg-transparent"
         }`}
       >
@@ -95,7 +95,7 @@ export function MarketingNavbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden glass-strong border-t border-border/50"
+            className="md:hidden border-t"
           >
             <div className="px-4 py-6 space-y-4">
               {navLinks.map((link) => (
