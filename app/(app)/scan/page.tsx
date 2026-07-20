@@ -30,6 +30,7 @@ const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export default function ScanPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const nativeCameraRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -59,7 +60,7 @@ export default function ScanPage() {
       streamRef.current = stream;
       setCameraOpen(true);
     } catch {
-      setCameraError("Camera access denied. Please allow camera permission or use file upload instead.");
+      nativeCameraRef.current?.click();
     }
   };
 
@@ -322,7 +323,7 @@ export default function ScanPage() {
             <CardContent className="p-0">
               {!imagePreview ? (
                 <div
-                  className="flex flex-col items-center justify-center aspect-[4/3] bg-muted/20 border-2 border-dashed border-border m-6 rounded-xl hover:bg-muted/40 transition-colors cursor-pointer"
+                  className="flex flex-col items-center justify-center aspect-[4/3] bg-muted/20 border-2 border-dashed border-border m-6 rounded-xl hover:bg-muted/40 transition-colors cursor-pointer py-2.5"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <div className="w-16 h-16 rounded-full bg-background flex items-center justify-center mb-4 shadow-sm">
@@ -368,6 +369,14 @@ export default function ScanPage() {
                     ref={fileInputRef}
                     className="hidden"
                     accept="image/jpeg, image/png, image/webp"
+                    onChange={handleFileChange}
+                  />
+                  <input
+                    type="file"
+                    ref={nativeCameraRef}
+                    className="hidden"
+                    accept="image/jpeg, image/png, image/webp"
+                    capture="environment"
                     onChange={handleFileChange}
                   />
                 </div>
