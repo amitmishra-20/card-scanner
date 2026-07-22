@@ -9,17 +9,20 @@ const path = require("path");
 const schemaPath = path.join(__dirname, "../prisma/schema.prisma");
 let schema = fs.readFileSync(schemaPath, "utf8");
 
-// Replace SQLite provider with PostgreSQL
+// Replace SQLite provider with PostgreSQL in datasource block
 schema = schema.replace(
   /provider\s*=\s*"sqlite"/,
   'provider = "postgresql"'
 );
 
-// Add binaryTargets after provider line if not already present
+// Add binaryTargets to generator block if not already present
 if (!schema.includes("binaryTargets")) {
   schema = schema.replace(
-    /provider\s*=\s*"postgresql"/,
-    'provider      = "postgresql"\n  binaryTargets = ["native", "rhel-openssl-3.0.x"]'
+    /generator\s+client\s*\{[^}]*\}/,
+    (match) => {
+      // Insert binaryTargets before the closing brace
+      return match.replace(/\}(\s*)$/, '  binaryTargets = ["native", "rhel-openssl-3.0.x"]\n}$1');
+    }
   );
 }
 
