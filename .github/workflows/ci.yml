@@ -24,7 +24,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: node scripts/patch-schema.mjs && npx prisma generate
+      - run: pnpm db:generate:pg
       - run: pnpm lint
       - run: npx tsc --noEmit
 
@@ -56,5 +56,5 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: node scripts/patch-schema.mjs && npx prisma generate
+      - run: pnpm db:generate:pg
       - run: pnpm build
