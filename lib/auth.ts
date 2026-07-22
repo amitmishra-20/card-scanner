@@ -52,6 +52,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             name: user.name,
             email: user.email,
             image: user.image,
+            role: user.role as "USER" | "ADMIN",
           };
         } catch (error) {
           console.error(
@@ -67,27 +68,51 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.role = (("role" in user ? (user.role as string) : "USER") ?? "USER") as "USER" | "ADMIN";
+      }
+      if (token.email) {
+        const adminEmails = (process.env.ADMIN_EMAIL ?? "")
+          .split(",")
+          .map((e) => e.trim().toLowerCase())
+          .filter(Boolean);
+        if (adminEmails.includes(token.email.toLowerCase())) {
+          token.role = "ADMIN";
+        }
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string;
+        session.user.role = (token.role as "USER" | "ADMIN") ?? "USER";
       }
       return session;
     },
     async signIn({ user, account }) {
-      // For OAuth: ensure user gets a free plan on first sign-in
       try {
         if (account?.provider !== "credentials" && user?.id) {
           await getOrCreateSubscription(user.id);
+        }
+
+        if (user?.email && user?.id) {
+          const adminEmails = (process.env.ADMIN_EMAIL ?? "")
+            .split(",")
+            .map((e) => e.trim().toLowerCase())
+            .filter(Boolean);
+          if (
+            adminEmails.includes(user.email.toLowerCase())
+          ) {
+            await db.user.updateMany({
+              where: { id: user.id, role: { not: "ADMIN" } },
+              data: { role: "ADMIN" },
+            });
+          }
         }
       } catch (error) {
         console.error(
           "SignIn callback error:",
           error instanceof Error ? error.message : error
         );
-        // Don't block sign-in if subscription setup fails
       }
       return true;
     },

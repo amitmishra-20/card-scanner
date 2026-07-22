@@ -20,6 +20,7 @@ model User {
   emailVerified DateTime?
   image         String?
   password      String?
+  role          String    @default("USER")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -28,6 +29,8 @@ model User {
   leads         Lead[]
   subscription  Subscription?
   scanUsages    ScanUsage[]
+
+  @@index([role])
 }
 
 model Account {

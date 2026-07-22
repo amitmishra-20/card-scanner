@@ -7,6 +7,9 @@ import {
   ScanLine,
   Users,
   Settings,
+  Shield,
+  UserCog,
+  Mail,
   type LucideIcon,
 } from "lucide-react";
 import type { LeadStatus } from "@/types";
@@ -36,6 +39,28 @@ export const APP_NAV_ITEMS: {
     title: "Account",
     href: "/account",
     icon: Settings,
+  },
+];
+
+export const ADMIN_NAV_ITEMS: {
+  title: string;
+  href: string;
+  icon: LucideIcon;
+}[] = [
+  {
+    title: "Overview",
+    href: "/admin/overview",
+    icon: Shield,
+  },
+  {
+    title: "Users",
+    href: "/admin/users",
+    icon: UserCog,
+  },
+  {
+    title: "Waitlist",
+    href: "/admin/waitlist",
+    icon: Mail,
   },
 ];
 

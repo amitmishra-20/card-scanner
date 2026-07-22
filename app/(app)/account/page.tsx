@@ -23,6 +23,7 @@ import {
   updateProfileAction,
   deleteAccountAction,
 } from "@/actions/user";
+import { joinWaitlist, isOnWaitlist } from "@/actions/waitlist";
 import { signOut } from "next-auth/react";
 import {
   Dialog,
@@ -39,10 +40,19 @@ export default function AccountPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isJoiningWaitlist, setIsJoiningWaitlist] = useState(false);
+  const [waitlistJoined, setWaitlistJoined] = useState(false);
 
   useEffect(() => {
     if (status === "authenticated" && session?.user?.name) {
       setName(session.user.name);
+    }
+    if (status === "authenticated" && session?.user?.email) {
+      isOnWaitlist(session.user.email).then((res) => {
+        if (res.success && res.data?.onWaitlist) {
+          setWaitlistJoined(true);
+        }
+      });
     }
   }, [status, session]);
 
@@ -108,6 +118,24 @@ export default function AccountPage() {
       toast.error("Failed to delete account");
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleJoinWaitlist = async () => {
+    if (!session?.user?.email) return;
+    setIsJoiningWaitlist(true);
+    try {
+      const res = await joinWaitlist(session.user.email);
+      if (res.success) {
+        setWaitlistJoined(true);
+        toast.success(res.data?.message || "Joined the waitlist!");
+      } else {
+        toast.error(res.error || "Failed to join waitlist");
+      }
+    } catch {
+      toast.error("Failed to join waitlist");
+    } finally {
+      setIsJoiningWaitlist(false);
     }
   };
 
@@ -184,6 +212,52 @@ export default function AccountPage() {
               </Button>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="glass border-border/50 shadow-xl shadow-black/5">
+        <CardHeader>
+          <CardTitle>Pro Plan Waitlist</CardTitle>
+          <CardDescription>
+            Get early access to higher scan limits, CSV export, and priority
+            support when Pro launches.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {waitlistJoined ? (
+            <div className="flex items-center gap-3 p-4 border border-emerald-500/20 rounded-lg bg-emerald-500/5">
+              <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-foreground">You&apos;re on the list!</p>
+                <p className="text-sm text-muted-foreground">
+                  We&apos;ll notify you at <span className="text-foreground">{session?.user?.email}</span> when Pro launches.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between p-4 border border-border/50 rounded-lg bg-muted/20">
+              <div>
+                <p className="text-sm text-foreground">
+                  Join the waitlist for <span className="font-medium">unlimited scans</span>, CSV export, and more.
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Signed in as <span className="text-foreground">{session?.user?.email}</span>
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="shrink-0 btn-gradient dark:text-primary"
+                onClick={handleJoinWaitlist}
+                disabled={isJoiningWaitlist}
+              >
+                {isJoiningWaitlist ? "Joining..." : "Join Waitlist"}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

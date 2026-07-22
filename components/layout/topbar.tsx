@@ -4,15 +4,20 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { Menu, X, ScanLine } from "lucide-react";
+import { Menu, X, ScanLine, Mail } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { APP_NAV_ITEMS } from "@/constants";
+import { APP_NAV_ITEMS, ADMIN_NAV_ITEMS } from "@/constants";
 
 const UserMenu = dynamic(
   () => import("@/components/layout/user-menu").then((m) => m.UserMenu),
+  { ssr: false }
+);
+
+const WaitlistButton = dynamic(
+  () => import("@/components/layout/waitlist-button").then((m) => m.WaitlistButton),
   { ssr: false }
 );
 
@@ -20,6 +25,7 @@ export function Topbar() {
   const { data: session, status } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const isAdmin = session?.user?.role === "ADMIN";
 
   useEffect(() => {
     if (mobileMenuOpen) {
@@ -78,6 +84,8 @@ export function Topbar() {
             <ScanLine className="w-4 h-4 mr-2" />
             New Scan
           </Link>
+
+          <WaitlistButton />
 
           {/* User Menu */}
           {status === "loading" ? (
@@ -159,6 +167,44 @@ export function Topbar() {
                 </Link>
               );
             })}
+
+            {isAdmin && (
+              <>
+                <div className="my-3 mx-3 border-t border-sidebar-border" />
+                <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+                  Admin
+                </p>
+                {ADMIN_NAV_ITEMS.map((item) => {
+                  const isActive = pathname.startsWith(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={cn(
+                        "group flex items-center px-3 py-3 text-sm font-medium rounded-lg",
+                        isActive
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                          : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
+                      )}
+                    >
+                      <item.icon
+                        className={cn(
+                          "mr-3 h-5 w-5",
+                          isActive ? "text-primary" : ""
+                        )}
+                      />
+                      {item.title}
+                    </Link>
+                  );
+                })}
+              </>
+            )}
+
+            <div className="my-3 mx-3 border-t border-sidebar-border" />
+            <div className="px-3">
+              <WaitlistButton />
+            </div>
           </nav>
         </div>
       </div>

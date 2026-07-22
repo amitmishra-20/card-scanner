@@ -107,6 +107,7 @@ export async function getUserProfileAction(): Promise<
         name: user.name,
         email: user.email,
         image: user.image,
+        role: user.role as "USER" | "ADMIN",
         plan: subscription.plan.name as PlanName,
         scansUsed,
         scanLimit: subscription.plan.scanLimit,

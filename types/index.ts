@@ -2,6 +2,10 @@
 // CardScan Pro — TypeScript Types & Interfaces
 // ============================================
 
+// --- User Roles ---
+export const USER_ROLES = ["USER", "ADMIN"] as const;
+export type UserRole = (typeof USER_ROLES)[number];
+
 // --- Lead Status ---
 export const LEAD_STATUSES = [
   "NEW",
@@ -113,7 +117,33 @@ export interface UserProfile {
   name: string | null;
   email: string;
   image: string | null;
+  role: UserRole;
   plan: PlanName;
   scansUsed: number;
   scanLimit: number;
+}
+
+// --- Admin Types ---
+export interface UserWithStats {
+  id: string;
+  name: string | null;
+  email: string;
+  image: string | null;
+  role: UserRole;
+  plan: string;
+  totalScans: number;
+  lastScannedLead: { name: string | null; company: string | null; createdAt: Date } | null;
+  createdAt: Date;
+}
+
+export interface AdminDashboardStats {
+  totalUsers: number;
+  totalScans: number;
+  totalWaitlist: number;
+}
+
+export interface WaitlistEntry {
+  id: string;
+  email: string;
+  createdAt: Date;
 }
