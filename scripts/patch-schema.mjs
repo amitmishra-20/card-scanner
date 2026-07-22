@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 // Patches prisma/schema.prisma for PostgreSQL production builds.
-// Run during Vercel build: node scripts/patch-schema.js
+// Run during Vercel build: node scripts/patch-schema.mjs
 // schema.prisma stays as SQLite (source of truth for dev).
 
-const fs = require("fs");
-const path = require("path");
+import { readFileSync, writeFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const schemaPath = path.join(__dirname, "../prisma/schema.prisma");
-let schema = fs.readFileSync(schemaPath, "utf8");
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const schemaPath = join(__dirname, "../prisma/schema.prisma");
+let schema = readFileSync(schemaPath, "utf8");
 
 // Replace SQLite provider with PostgreSQL in datasource block
 schema = schema.replace(
@@ -26,5 +28,5 @@ if (!schema.includes("binaryTargets")) {
   );
 }
 
-fs.writeFileSync(schemaPath, schema, "utf8");
+writeFileSync(schemaPath, schema, "utf8");
 console.log("✅ Patched schema.prisma for PostgreSQL");

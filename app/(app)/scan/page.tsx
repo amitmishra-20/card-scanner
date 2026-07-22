@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import Image from "next/image";
 import { extractCardData } from "@/actions/scan";
 import { createLead } from "@/actions/leads";
 import type { ExtractedCardData } from "@/types";
@@ -110,7 +111,7 @@ export default function ScanPage() {
 
   const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
-      const img = new Image();
+      const img = new window.Image();
       const objectUrl = URL.createObjectURL(file);
 
       img.onload = () => {
@@ -382,12 +383,13 @@ export default function ScanPage() {
                 </div>
               ) : (
                 <div className="relative aspect-[4/3] w-full bg-black/90">
-                  <img
+                  <Image
                     src={imagePreview}
                     alt="Card Preview"
                     className="w-full h-full object-contain"
                     width={MAX_DIM}
                     height={MAX_DIM}
+                    unoptimized
                   />
                   {isScanning && (
                     <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex flex-col items-center justify-center">
