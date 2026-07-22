@@ -1,10 +1,9 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { Menu, X, ScanLine, Mail } from "lucide-react";
+import { Menu, X, ScanLine} from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -210,4 +209,5 @@ export function Topbar() {
       </div>
     </>
   );
+  
 }
