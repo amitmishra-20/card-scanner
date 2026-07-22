@@ -1,6 +1,8 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Providers } from "@/components/providers";
+import { Toaster } from "@/components/ui/sonner";
 
 export default function AppLayout({
   children,
@@ -8,18 +10,21 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <TooltipProvider>
-      <div className="flex h-screen bg-background overflow-hidden">
-        <Sidebar />
-        <div className="flex flex-col flex-1 w-full overflow-hidden">
-          <Topbar />
-          <main className="flex-1 overflow-y-auto bg-background/50">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 h-full">
-              {children}
-            </div>
-          </main>
+    <Providers>
+      <TooltipProvider>
+        <div className="flex h-screen bg-background overflow-hidden">
+          <Sidebar />
+          <div className="flex flex-col flex-1 w-full overflow-hidden">
+            <Topbar />
+            <main className="flex-1 overflow-y-auto bg-background/50">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 h-full">
+                {children}
+              </div>
+            </main>
+          </div>
         </div>
-      </div>
-    </TooltipProvider>
+      </TooltipProvider>
+      <Toaster richColors position="bottom-right" />
+    </Providers>
   );
 }

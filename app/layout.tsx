@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, DM_Serif_Display } from "next/font/google";
-import { Toaster } from "@/components/ui/sonner";
-import { Providers } from "@/components/providers";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
@@ -60,10 +58,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${dmSerif.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col dark">
-        <Providers>
-          {children}
-          <Toaster richColors position="bottom-right" />
-        </Providers>
+        {children}
         <SpeedInsights />
         <Analytics />
       </body>

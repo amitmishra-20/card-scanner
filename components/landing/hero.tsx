@@ -37,35 +37,20 @@ export function Hero() {
       {/* ===== SMALL SCREEN: Stacked layout (card on top, content below) ===== */}
       <div className="lg:hidden relative z-10 w-full max-w-lg mx-auto">
         {/* Business Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 40, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-          className="aspect-[1.58/1]"
-        >
+        <div className="aspect-[1.58/1] opacity-0 animate-hero-fade-in">
           <CardFace />
-        </motion.div>
+        </div>
 
         {/* Content below card */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-12 sm:mt-16 text-center"
-        >
+        <div className="mt-12 sm:mt-16 text-center opacity-0 animate-hero-fade-in animate-hero-delay-2">
           <Headline />
           <Subtitle />
           <CTAButton />
-        </motion.div>
+        </div>
       </div>
 
       {/* ===== LARGE SCREEN: Big card with content inside ===== */}
-      <motion.div
-        initial={{ opacity: 0, y: 40, scale: 0.96 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-        className="hidden lg:block relative z-10 w-full max-w-5xl mx-auto aspect-[16/9]"
-      >
+      <div className="hidden lg:block relative z-10 w-full max-w-5xl mx-auto aspect-[16/9] opacity-0 animate-hero-fade-in">
         <div className="relative bg-[oklch(0.12 0 0)] border border-white/10 overflow-hidden h-full rounded-2xl">
           <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-transparent" />
 
@@ -105,32 +90,19 @@ export function Hero() {
 
             {/* Right: Hero headline + CTA */}
             <div className="w-3/5 flex flex-col items-center justify-center p-10 xl:p-14 text-center">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              >
+              <div className="opacity-0 animate-hero-fade-in animate-hero-delay-2">
                 <h1 className="font-heading text-5xl xl:text-6xl 2xl:text-7xl tracking-tight leading-[0.95] mb-6">
                   Scan any card
                   <br />
                   <span className="text-gradient">in 2 seconds.</span>
                 </h1>
-              </motion.div>
+              </div>
 
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                className="text-lg xl:text-xl text-white/50 max-w-md mb-10"
-              >
+              <p className="text-lg xl:text-xl text-white/50 max-w-md mb-10 opacity-0 animate-hero-fade-in animate-hero-delay-3">
                 AI-powered OCR. Zero manual entry. From paper to pipeline instantly.
-              </motion.p>
+              </p>
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.55, ease: [0.16, 1, 0.3, 1] }}
-              >
+              <div className="opacity-0 animate-hero-fade-in animate-hero-delay-4">
                 <Link
                   href="/register"
                   className={cn(
@@ -141,7 +113,7 @@ export function Hero() {
                   Try it free
                   <ArrowRight className="w-5 h-5 ml-3" />
                 </Link>
-              </motion.div>
+              </div>
             </div>
           </div>
 
@@ -178,7 +150,7 @@ export function Hero() {
             }}
           />
         </div>
-      </motion.div>
+      </div>
     </section>
   );
 }
@@ -266,24 +238,15 @@ function Headline() {
 
 function Subtitle() {
   return (
-    <motion.p
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: 0.45, ease: [0.16, 1, 0.3, 1] }}
-      className="text-base sm:text-lg text-muted-foreground max-w-md mx-auto mb-8 sm:mb-10"
-    >
+    <p className="text-base sm:text-lg text-muted-foreground max-w-md mx-auto mb-8 sm:mb-10 opacity-0 animate-hero-fade-in animate-hero-delay-3">
       AI-powered OCR. Zero manual entry. From paper to pipeline instantly.
-    </motion.p>
+    </p>
   );
 }
 
 function CTAButton() {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: 0.55, ease: [0.16, 1, 0.3, 1] }}
-    >
+    <div className="opacity-0 animate-hero-fade-in animate-hero-delay-4">
       <Link
         href="/register"
         className={cn(
@@ -294,6 +257,6 @@ function CTAButton() {
         Try it free
         <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-3" />
       </Link>
-    </motion.div>
+    </div>
   );
 }

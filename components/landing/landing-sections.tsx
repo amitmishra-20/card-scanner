@@ -8,11 +8,11 @@ const ScrollStory = dynamic(
 );
 const SocialProof = dynamic(
   () => import("@/components/landing/social-proof").then((m) => m.SocialProof),
-  { ssr: false }
+  { ssr: true }
 );
 const BentoGrid = dynamic(
   () => import("@/components/landing/bento-features").then((m) => m.BentoGrid),
-  { ssr: false }
+  { ssr: true }
 );
 const ProductShowcase = dynamic(
   () =>
