@@ -25,6 +25,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate:pg
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
       - run: pnpm lint
       - run: npx tsc --noEmit
 
@@ -57,4 +59,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate:pg
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
       - run: pnpm build
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"

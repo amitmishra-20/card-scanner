@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm db:generate:pg && pnpm db:push:pg && pnpm build",
+  "buildCommand": "node scripts/load-vercel-env.js pnpm db:generate:pg && node scripts/load-vercel-env.js pnpm db:push:pg && node scripts/load-vercel-env.js pnpm build",
   "outputDirectory": ".next",
   "regions": ["iad1"]
 }
